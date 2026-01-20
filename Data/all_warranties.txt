@@ -1,0 +1,11 @@
+TYPE: warranty_policy
+TITLE: Smartphone Warranty Policy
+CONTENT:All smartphones  come with 14-day warranty from purchase date.
+SOURCE: manual_entry
+
+________________________________________
+
+TYPE: warranty_policy
+TITLE: OTHER PRODUCTS  Warranty Policy
+CONTENT:All Products expect smartphones  come with 7-day warranty from purchase date.
+SOURCE: manual_entry

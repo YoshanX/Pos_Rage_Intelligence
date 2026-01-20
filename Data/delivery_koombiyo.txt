@@ -1,0 +1,6 @@
+TYPE: delivery_issue
+TITLE: Koombiyo Courier Delays January 2026
+CONTENT:All orders dispatched via Koombiyo Courier Service (Courier ID 2) will experience significant delays between January 4, 2026 and January 8, 2026. This delay is caused 	by a major system failure at the Koombiyo central processing hub.For all orders placed during this affected period, it is strongly recommended to switch the default 	courier service to Prontotxt or Farhad in order to ensure timely delivery.Any orders that were already assigned to Koombiyo within this timeframe have been 	automatically flagged as "Delayed" in the order_status table for tracking and operational awareness.
+SOURCE: HEAD OFFICE
+
+________________________________________

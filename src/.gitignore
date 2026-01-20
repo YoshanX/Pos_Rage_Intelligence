@@ -1,0 +1,6 @@
+__pycache__/
+.env
+data/*.txt
+*.db
+venv/
+.DS_Store

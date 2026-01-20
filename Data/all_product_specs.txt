@@ -1,0 +1,149 @@
+TYPE: product_spec 
+TITLE: iPhone 15 Specifications CONTENT: Display: 6.1 inch Super Retina XDR OLED Chip: A16 Bionic Camera: 48MP main, 12MP ultra wide RAM: 6GB Storage: 128GB, 256GB, 512GB Battery: Up to 20 hours video playback Special Features: Face ID, USB-C, Ceramic Shield SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: iPhone 15 Pro Max Specifications CONTENT: Display: 6.7 inch Super Retina XDR OLED Chip: A17 Pro (3nm) Camera: 48MP main, 12MP ultra wide, 12MP telephoto (5x) RAM: 8GB Storage: 256GB, 512GB, 1TB Battery: Up to 29 hours video playback Special Features: Action Button, Titanium Frame, USB-C SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec
+ TITLE: Samsung Galaxy S24 Ultra Specifications CONTENT: Display: 6.8 inch Dynamic AMOLED 2X 120Hz Chip: Snapdragon 8 Gen 3 Camera: 200MP main, 12MP ultra wide, 50MP telephoto, 10MP periscope RAM: 12GB Storage: 256GB, 512GB, 1TB Battery: 5000mAh Special Features: S Pen, Galaxy AI, Gorilla Glass Armor SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec
+ TITLE: Samsung Galaxy A55 5G Specifications CONTENT: Display: 6.6 inch Super AMOLED 120Hz Chip: Exynos 1480 Camera: 50MP main, 12MP ultra wide, 5MP macro RAM: 8GB Storage: 128GB, 256GB Battery: 5000mAh Special Features: IP67, 5G support SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec
+ TITLE: Google Pixel 8 Specifications CONTENT: Display: 6.2 inch OLED 120Hz Chip: Google Tensor G3 Camera: 50MP main, 12MP ultra wide RAM: 8GB Storage: 128GB, 256GB Battery: 4575mAh Special Features: AI camera, 7 years updates SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Google Pixel 7a Specifications CONTENT: Display: 6.1 inch OLED 90Hz Chip: Google Tensor G2 Camera: 64MP main, 13MP ultra wide RAM: 8GB Storage: 128GB Battery: 4385mAh Special Features: Clean Android, Titan M2 SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Xiaomi Redmi Note 14 5G Specifications CONTENT: Display: 6.6 inch AMOLED 120Hz Chip: MediaTek Dimensity Camera: 108MP main, 8MP ultra wide RAM: 8GB Storage: 128GB, 256GB Battery: 5000mAh Special Features: Fast charging, 5G SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Xiaomi 14 Ultra Specifications CONTENT: Display: 6.73 inch LTPO AMOLED Chip: Snapdragon 8 Gen 3 Camera: Quad 50MP Leica cameras RAM: 16GB Storage: 512GB, 1TB Battery: 5300mAh Special Features: Leica optics, wireless charging SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Vivo V30 5G Specifications CONTENT: Display: 6.78 inch AMOLED 120Hz Chip: Snapdragon 7 Gen 3 Camera: 50MP main, 50MP selfie RAM: 12GB Storage: 256GB Battery: 5000mAh Special Features: Slim design, fast charging SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Oppo Reno 11 Pro Specifications CONTENT: Display: 6.7 inch AMOLED 120Hz Chip: Dimensity 8200 Camera: 50MP main, 32MP telephoto RAM: 12GB Storage: 256GB Battery: 4600mAh Special Features: Portrait camera, fast charging SOURCE: manufacturer_website  
+________________________________________
+TYPE: product_spec 
+TITLE: Apple Watch Series 9 Specifications CONTENT: Display: 45mm Retina LTPO OLED Chip: S9 SiP Sensors: Heart rate, ECG, SpO2 Battery: Up to 18 hours Special Features: Double Tap, watchOS SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Apple Watch Ultra 2 Specifications CONTENT: Display: 49mm Retina OLED Chip: S9 SiP Sensors: ECG, depth, temperature Battery: Up to 36 hours Special Features: Titanium body, Action Button SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Samsung Galaxy Watch 6 Specifications CONTENT: Display: Super AMOLED Chip: Exynos W930 Sensors: ECG, BIA, SpO2 Battery: Up to 40 hours Special Features: Wear OS, body composition SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Huawei Watch GT 4 Specifications CONTENT: Display: AMOLED Battery: Up to 14 days Sensors: Heart rate, SpO2 Special Features: HarmonyOS, fitness tracking SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Amazfit GTR 4 Specifications CONTENT: Display: AMOLED GPS: Dual-band Battery: Up to 14 days Special Features: Alexa support SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Garmin Venu 3 Specifications CONTENT: Display: AMOLED GPS: Built-in Battery: Up to 14 days Special Features: Advanced health analytics SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Redmi Watch 4 Specifications CONTENT: Display: AMOLED Battery: Up to 20 days Special Features: Bluetooth calling SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Fitbit Sense 2 Specifications CONTENT: Display: AMOLED Sensors: ECG, EDA Battery: Up to 6 days Special Features: Stress management SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Haylou RS4 Plus Specifications CONTENT: Display: AMOLED Battery: Up to 10 days Special Features: Heart rate tracking SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Samsung Watch 5 Pro Specifications CONTENT: Display: AMOLED Battery: Up to 80 hours Special Features: GPS, durability focus SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Anker PowerCore 20000mAh Specifications CONTENT: Capacity: 20000mAh Output: Fast charging Special Features: Multi-device support SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Anker 737 Power Bank Specifications CONTENT: Capacity: 24000mAh Output: 140W Special Features: Laptop charging SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Xiaomi Mi Power Bank 3 Specifications CONTENT: Capacity: 10000mAh Output: 18W Special Features: Compact design SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Xiaomi 20000mAh 50W Power Bank Specifications CONTENT: Capacity: 20000mAh Output: 50W Special Features: Fast charging SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Samsung 10000mAh 25W Power Bank Specifications CONTENT: Capacity: 10000mAh Output: 25W Special Features: Super Fast Charging SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Joyroom 20000mAh 22.5W Power Bank Specifications CONTENT: Capacity: 20000mAh Output: 22.5W Special Features: Multiple ports SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Baseus Adaman 20k Specifications CONTENT: Capacity: 20000mAh Output: Fast charging Special Features: Digital display SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Remax RPP-291 30000mAh Specifications CONTENT: Capacity: 30000mAh Output: Multi-device charging Special Features: High capacity SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Promate Bolt-20 Specifications CONTENT: Capacity: 20000mAh Output: Fast charging Special Features: Compact design SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Ugreen 10000mAh PD Specifications CONTENT: Capacity: 10000mAh Output: Power Delivery Special Features: Slim profile SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Sony WH-1000XM5 Specifications CONTENT: Type: Over-ear Noise Cancellation: Adaptive ANC Battery: Up to 30 hours Special Features: Premium sound SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: AirPods Pro (2nd Gen) Specifications CONTENT: Type: In-ear Noise Cancellation: Active Battery: Up to 30 hours with case Special Features: Spatial Audio SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Samsung Galaxy Buds 2 Pro Specifications CONTENT: Type: In-ear Noise Cancellation: Active Battery: Up to 29 hours Special Features: 24-bit audio SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Bose QuietComfort Ultra Specifications CONTENT: Type: Over-ear Noise Cancellation: Advanced ANC Battery: Up to 24 hours Special Features: Immersive audio SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: JBL Tune 770NC Specifications CONTENT: Type: Over-ear Noise Cancellation: Adaptive ANC Battery: Up to 70 hours Special Features: JBL Pure Bass SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Marshall Major IV Specifications CONTENT: Type: On-ear Battery: Up to 80 hours Special Features: Iconic design SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Sennheiser Momentum 4 Specifications CONTENT: Type: Over-ear Noise Cancellation: Adaptive Battery: Up to 60 hours Special Features: Audiophile tuning SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Xiaomi Buds 5 Specifications CONTENT: Type: In-ear Noise Cancellation: Active Battery: Up to 30 hours Special Features: Low latency SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Beats Studio Pro Specifications CONTENT: Type: Over-ear Noise Cancellation: Active Battery: Up to 40 hours Special Features: Spatial Audio SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Sony WF-1000XM5 Specifications CONTENT: Type: True wireless Noise Cancellation: Industry-leading ANC Battery: Up to 24 hours Special Features: Hi-Res Audio SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: JBL Flip 6 Specifications CONTENT: Output: 30W Battery: Up to 12 hours Water Resistance: IP67 Special Features: Portable SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: JBL Charge 5 Specifications CONTENT: Output: 40W Battery: Up to 20 hours Water Resistance: IP67 Special Features: Power bank function SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Sony SRS-XB13 Specifications CONTENT: Output: Extra Bass Battery: Up to 16 hours Water Resistance: IP67 Special Features: Compact SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Sony SRS-XE300 Specifications CONTENT: Output: Line-shape diffuser Battery: Up to 24 hours Water Resistance: IP67 Special Features: Wide sound SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Marshall Emberton II Specifications CONTENT: Output: True Stereophonic Battery: Up to 30 hours Water Resistance: IP67 Special Features: Stack Mode SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Bose SoundLink Flex Specifications CONTENT: Output: Balanced audio Battery: Up to 12 hours Water Resistance: IP67 Special Features: PositionIQ SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Anker Soundcore Flare 2 Specifications CONTENT: Output: 360-degree sound Battery: Up to 12 hours Water Resistance: IPX7 Special Features: LED lights SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Xiaomi Mi Speaker Specifications CONTENT: Output: Stereo sound Battery: Up to 10 hours Connectivity: Bluetooth Special Features: Portable SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: HK Onyx Studio 8 Specifications CONTENT: Output: Premium stereo Battery: Up to 8 hours Connectivity: Bluetooth Special Features: Elegant design SOURCE: manufacturer_website
+________________________________________
+TYPE: product_spec 
+TITLE: Apple HomePod Mini Specifications CONTENT: Audio: 360-degree sound Connectivity: Wi-Fi, Bluetooth Special Features: Siri, smart home hub SOURCE: manufacturer_website
