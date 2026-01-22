@@ -2,60 +2,55 @@ from config import groq_client
 
 def identify_intent(question):
     """
-    Enhanced intent classification with explicit examples and rules
-    Returns: 'SQL', 'RAG', or 'BOTH'
+    Refined intent classifier using few-shot examples for Avenir IT POS.
+    Routes to SQL (Data), RAG (Specs/Policy), or BOTH (Data + Reason).
     """
     
-    routing_prompt = f"""You are a query intent classifier for a smartphone POS system.
+    routing_prompt = f"""You are a high-precision router for a POS AI.
+    
+    USER QUESTION: "{question}"
 
-USER QUESTION: "{question}"
+    CLASSIFICATION CATEGORIES:
 
-TASK: Classify into exactly ONE category. Respond with ONLY: SQL, RAG, or BOTH
+    1. **SQL**: Pure data from tables (Price, Stock, Status, Sales, Dates).
+       - Examples: "How much is iPhone 15?", "List orders from Jan 5", "Is order 101 success?", "How many S24 in stock?" ,"What was the previous price of the Sony WH-1000XM5"
 
-CLASSIFICATION RULES:
+    2. **RAG**: Descriptions, specs, or policies from the knowledge base.
+       - Examples: "What are the camera specs for Pixel 8?", "What is the 14-day warranty?", "Describe the iPhone 15 features."
 
-**SQL** - Questions needing ONLY database facts/numbers:
-- Keywords: "what is", "show me", "how many", "list", "get", "find"
-- Examples:
-  ✓ "What is the price of iPhone 15?"
-  ✓ "How many products in stock?"
-  ✓ "Show order 118 status"
-  ✓ "List all delayed orders"
-  ✓ "What is the status_id of order 118?"
+    3. **BOTH**: Data lookup followed by an explanation or "Why".
+       - Examples: "Is order 118 delayed and why?", "What is the status of order 118 and give the reason for delay?", "How many sales today and why are they low?"
 
-**BOTH** - Questions needing database facts AND explanations/reasons:
-- Keywords: "why", "reason", "explain", "because", "how come", "what caused"
-- Pattern: "Get X and explain/why"
-- Examples:
-  ✓ "What is order 118 status and why is it delayed?"
-  ✓ "Show delayed orders and explain why"
-  ✓ "Why did sales drop last week?" (needs sales numbers + context)
-  ✓ "Is order 118 delayed and if so why?"
-  ✓ "What's the delay reason for order 118?" (needs DB + knowledge)
+    FEW-SHOT EXAMPLES:
+    - Q: "What's the price of Xiaomi 14 Ultra?" -> SQL
+    - Q: "Give me the specifications for Xiaomi 14 Ultra." -> RAG
+    - Q: "Why is order 118 delayed?" -> BOTH
+    - Q: "Is order 55 delayed? If yes, why?" -> BOTH
+    - Q: "What is the return policy for smartwatches?" -> RAG
+    - Q: "How many iPhones were sold on Jan 5?" -> SQL
+    - Q: "Tell me about the Koombiyo delivery issue." -> RAG
 
-**RAG** - Questions needing ONLY descriptions/policies/general knowledge:
-- Keywords: "describe", "compare", "recommend", "policy", "what are the features"
-- Examples:
-  ✓ "What are the features of iPhone 15?"
-  ✓ "Compare iPhone vs Samsung"
-  ✓ "What is the warranty policy?"
-  ✓ "Recommend a phone under LKR 50,000"
-  ✓ "How do I handle customer complaints?"
+    ROUTING RULE:
+    - If the user asks "WHY", "REASON", or "EXPLAIN" regarding a database status -> BOTH.
+    - If they ask for "SPECS", "FEATURES", or "POLICY" -> RAG.
+    - Otherwise, for counts, prices, and statuses -> SQL.
 
-DECISION TREE:
-1. Does question ask "why" or "reason" or "explain"? → BOTH
-2. Does question ask for specific numbers/status/data from DB? → SQL
-3. Does question ask for descriptions/comparisons/policies? → RAG
+    YOUR ANSWER (Respond with ONLY one word: SQL, RAG, or BOTH):
 
-CRITICAL: 
-- If question mentions BOTH data retrieval AND explanation → choose BOTH
-- "Why" or "reason" questions almost always need BOTH
-- Status questions without "why" are just SQL
+    DECISION TREE:
+    1. Does question ask "why" or "reason" or "explain"? → BOTH
+    2. Does question ask for specific numbers/status/data from DB? → SQL
+    3. Does question ask for descriptions/comparisons/policies? → RAG
 
-YOUR ANSWER (one word only):"""
+    CRITICAL: 
+    - If question mentions BOTH data retrieval AND explanation → choose BOTH
+    - "Why" or "reason" questions almost always need BOTH
+    - Status questions without "why" are just SQL
+
+    YOUR ANSWER (one word only):"""
 
     response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="llama-3.1-8b-instant",
         messages=[{"role": "user", "content": routing_prompt}],
         temperature=0.1  # Lower temperature for more consistent classification
     )

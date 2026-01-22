@@ -1,9 +1,11 @@
 import streamlit as st
 import os
+import time
 from db_connection import setup_database
 from intent import identify_intent
 from retrieve import ask_sql_ai, ask_rag_ai, ask_both_ai, validate_query
 from ingest import ingest_to_knowledge_base
+from logger import log_transaction
 
 # Page Configuration
 st.set_page_config(page_title="POS RAG Intelligence", page_icon="🤖", layout="wide")
@@ -15,6 +17,7 @@ def init_system():
     return True
 
 init_system()
+start_time = time.time()
 
 # --- Sidebar Admin Controls ---
 with st.sidebar:
@@ -76,7 +79,9 @@ if query := st.chat_input("Ex: Why is order 118 delayed?"):
             is_safe, error_message = validate_query(query)
             if not is_safe:
                 answer = f"⚠️ **Guardrail Triggered:** {error_message}"
+                route = "BLOCKED"
             else:
+                
                 route = identify_intent(query)
                 
                 if "BOTH" in route:
@@ -89,5 +94,8 @@ if query := st.chat_input("Ex: Why is order 118 delayed?"):
                     st.caption("📚 Path: RAG")
                     answer = ask_rag_ai(query)
 
+
+            latency = time.time() - start_time
+            log_transaction(query, route, latency, answer) 
             st.markdown(answer)
             st.session_state.messages.append({"role": "assistant", "content": answer})

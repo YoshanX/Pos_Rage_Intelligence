@@ -3,4 +3,5 @@ __pycache__/
 data/*.txt
 *.db
 venv/
+logs/
 .DS_Store
