@@ -1,5 +1,6 @@
 import time
 import datetime
+import os
 
 def log_transaction(query, intent, latency, response):
     """
@@ -22,3 +23,27 @@ def log_transaction(query, intent, latency, response):
     
     # Also print to terminal for real-time monitoring
     print(log_entry)
+
+
+    import os
+import datetime
+
+def system_log(message):
+    """
+    Utility function to print a message to the console 
+    and append it to the audit log file.
+    """
+    
+    
+    # 2. Format the message with a timestamp
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    formatted_msg = f"[{timestamp}] {message}"
+    
+    # 3. Print to Terminal
+    print(formatted_msg)
+    
+    # 4. Append to Log File
+    
+
+    with open("../logs/system_audit.log", "a", encoding="utf-8") as f:
+        f.write(formatted_msg + "\n")   

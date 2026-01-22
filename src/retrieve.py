@@ -2,6 +2,7 @@ from config import embed_model, groq_client, SCHEMA_INFO, DB_CONFIG, MAX_TOKEN
 from db_connection import get_connection
 import psycopg2
 from sentence_transformers import SentenceTransformer
+from logger import system_log
 
 
 
@@ -19,7 +20,7 @@ def validate_query(question, max_tokens=MAX_TOKEN):
     token_count = len(tokens)
     
     if token_count > max_tokens:
-        print(f"⚠️ Guardrail Triggered: Query is {token_count} tokens (Max: {max_tokens})")
+        system_log(f"⚠️ Guardrail Triggered: Query is {token_count} tokens (Max: {max_tokens})")
         return False, f"Your question is too long ({token_count} tokens). Please keep it under {max_tokens} tokens."
     
     # 3. Security Check (SQL Injection Guardrail)
@@ -29,7 +30,7 @@ def validate_query(question, max_tokens=MAX_TOKEN):
     upper_question = clean_question.upper().split()
     for word in forbidden_keywords:
         if word in upper_question:
-            print(f"🚨 Security Alert: Prohibited keyword '{word}' detected.")
+            system_log(f"🚨 Security Alert: Prohibited keyword '{word}' detected.")
             return False, "Security rejection: You are not authorized to perform data modification commands."
 
     return True, None
@@ -38,6 +39,7 @@ def validate_query(question, max_tokens=MAX_TOKEN):
 # --- 4. RAG SEARCH (Vector Search) ---
 def ask_rag_ai(question):
     # 1. Generate the vector
+    system_log("🔍 Generating embedding for RAG search...")
     question_vector = embed_model.encode(question).tolist()
     conn = get_connection()
     cur = conn.cursor()
@@ -58,7 +60,7 @@ def ask_rag_ai(question):
         cur.execute(search_query, (question_vector, question_vector))
         results = cur.fetchall()
         # DEBUG: See what chunks were actually found
-        print(f"🔍 RAG Chunks Retrieved: {[r[0][:50] for r in results]}")
+        system_log(f"🔍 RAG Chunks Retrieved: {[r[0][:50] for r in results]}")
         
         # 3. Create a more "Strict" System Prompt
         context = "\n\n".join([r[0] for r in results])
@@ -79,7 +81,7 @@ def ask_rag_ai(question):
                 {"role": "user", "content": f"User is asking about: {question}. Provide only relevant details dont halusinate answers  if not in context say i dont have information."}
             ]
         )
-        print(f"Model dimension: {len(question_vector)}")
+        system_log(f"Model dimension: {len(question_vector)}")
         return response.choices[0].message.content
 
     except Exception as e:
@@ -90,6 +92,7 @@ def ask_rag_ai(question):
 
 # --- 5. SQL INSIGHTS (Text-to-SQL) ---
 def ask_sql_ai(question):
+    system_log("🧠 Generating SQL query...")
     # Initial setup
     attempt = 0
     max_attempts = 3
@@ -142,15 +145,16 @@ def ask_sql_ai(question):
 
         except Exception as e:
             error_feedback = str(e)
-            print(f"⚠️ Attempt {attempt} failed: {error_feedback}")
+            system_log(f"⚠️ Attempt {attempt} failed: {error_feedback}")
             if attempt == max_attempts:
-                print( f"❌ SQL Error after {max_attempts} attempts: {error_feedback}")
+                system_log( f"❌ SQL Error after {max_attempts} attempts: {error_feedback}")
                 return "I couldn't process that query. Please rephrase your question or contact support."
         finally:
             cur.close()
             conn.close()
 
 def ask_both_ai(question):
+    system_log("🔄 Processing BOTH SQL and RAG...")
     # Step A: Get the factual data from SQL
     # We use a simpler version of the SQL function that just returns raw data
     db_results = ask_sql_ai(question) 

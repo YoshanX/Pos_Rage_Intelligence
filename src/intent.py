@@ -1,4 +1,5 @@
 from config import groq_client
+from logger import system_log
 
 def identify_intent(question):
     """
@@ -66,5 +67,5 @@ def identify_intent(question):
                 return word
         # Default fallback
         return 'SQL'
-    
+    system_log(f"🛤️ Identified Intent: {intent}")
     return intent

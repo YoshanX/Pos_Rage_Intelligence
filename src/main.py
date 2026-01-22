@@ -6,6 +6,7 @@ from intent import identify_intent
 from retrieve import ask_sql_ai, ask_rag_ai, ask_both_ai, validate_query
 from ingest import ingest_to_knowledge_base
 from logger import log_transaction
+from logger import system_log
 
 # Page Configuration
 st.set_page_config(page_title="POS RAG Intelligence", page_icon="🤖", layout="wide")
@@ -17,6 +18,7 @@ def init_system():
     return True
 
 init_system()
+system_log("🚀 Application Started.")
 start_time = time.time()
 
 # --- Sidebar Admin Controls ---
@@ -99,3 +101,4 @@ if query := st.chat_input("Ex: Why is order 118 delayed?"):
             log_transaction(query, route, latency, answer) 
             st.markdown(answer)
             st.session_state.messages.append({"role": "assistant", "content": answer})
+            system_log(f"✅ Response delivered in {latency:.2f} seconds via {route} route.")

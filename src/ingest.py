@@ -4,6 +4,7 @@ import os
 import re
 import psycopg2
 from config import DB_CONFIG, embed_model
+from logger import system_log
 
 def parse_txt_to_chunks(file_path):
     """
@@ -11,7 +12,7 @@ def parse_txt_to_chunks(file_path):
     and extracts metadata based on TYPE, TITLE, CONTENT, and SOURCE tags.
     """
     if not os.path.exists(file_path):
-        print(f"❌ Error: {file_path} not found.")
+        system_log(f"❌ Error: {file_path} not found.")
         return []
 
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -60,7 +61,7 @@ def ingest_to_knowledge_base(file_list):
     cur = conn.cursor()
 
     for file_path in file_list:
-        print(f"📂 Processing: {file_path}...")
+        system_log(f"📂 Processing: {file_path}...")
         records = parse_txt_to_chunks(file_path)
 
         for rec in records:
@@ -74,16 +75,16 @@ def ingest_to_knowledge_base(file_list):
                     VALUES (%s, %s, %s, %s, %s)
                 """, (rec['document_type'], rec['title'], rec['content'], rec['source'], embedding))
                 
-                print(f"✅ Ingested: {rec['title']}")
+                system_log(f"✅ Ingested: {rec['title']}")
                 
             except Exception as e:
-                print(f"❌ Error inserting '{rec['title']}': {e}")
+                system_log(f"❌ Error inserting '{rec['title']}': {e}")
                 conn.rollback()
 
     conn.commit()
     cur.close()
     conn.close()
-    print("🚀 All knowledge base files have been synchronized.")
+    system_log("🚀 All knowledge base files have been synchronized.")
 
 
     
