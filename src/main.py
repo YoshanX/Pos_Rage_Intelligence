@@ -3,10 +3,11 @@ import os
 import time
 from db_connection import setup_database
 from intent import identify_intent
-from retrieve import ask_sql_ai, ask_rag_ai, ask_both_ai, validate_query
+from retrieve import ask_sql_ai, ask_rag_ai, ask_both_ai, validate_query,reformulate_question
 from ingest import ingest_to_knowledge_base
 from logger import log_transaction
 from logger import system_log
+
 
 # Page Configuration
 st.set_page_config(page_title="POS RAG Intelligence", page_icon="🤖", layout="wide")
@@ -19,7 +20,7 @@ def init_system():
 
 init_system()
 system_log("🚀 Application Started.")
-start_time = time.time()
+
 
 # --- Sidebar Admin Controls ---
 with st.sidebar:
@@ -72,29 +73,34 @@ for message in st.session_state.messages:
 
 # User Input Box
 if query := st.chat_input("Ex: Why is order 118 delayed?"):
+    start_time = time.time()
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user"):
         st.markdown(query)
 
     with st.chat_message("assistant"):
+        standalone_query = reformulate_question(query, st.session_state.messages)
+
+        # 2. LOG it (Using your new logger)
+        system_log(f"🔄 Original: {query} -> Standalone: {standalone_query}")
         with st.spinner("Analyzing Pos_dbc & Knowledge Base..."):
-            is_safe, error_message = validate_query(query)
+            is_safe, error_message = validate_query(standalone_query)
             if not is_safe:
                 answer = f"⚠️ **Guardrail Triggered:** {error_message}"
                 route = "BLOCKED"
             else:
                 
-                route = identify_intent(query)
+                route = identify_intent(standalone_query)
                 
                 if "BOTH" in route:
                     st.caption("🔀 Path: BOTH (SQL + RAG)")
-                    answer = ask_both_ai(query)
+                    answer = ask_both_ai(standalone_query)
                 elif "SQL" in route:
                     st.caption("🔍 Path: SQL")
-                    answer = ask_sql_ai(query)
+                    answer = ask_sql_ai(standalone_query)
                 else:
                     st.caption("📚 Path: RAG")
-                    answer = ask_rag_ai(query)
+                    answer = ask_rag_ai(standalone_query)
 
 
             latency = time.time() - start_time

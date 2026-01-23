@@ -36,6 +36,40 @@ def validate_query(question, max_tokens=MAX_TOKEN):
     return True, None
 
 
+def reformulate_question(current_question, chat_history):
+    """
+    Analyzes history and current question to create a standalone query.
+    """
+    if not chat_history:
+        return current_question
+
+    # Format history for the prompt
+    history_str = "\n".join([f"{m['role']}: {m['content']}" for m in chat_history[-5:]])
+
+    prompt = f"""
+    Given the following conversation history and a follow-up question, 
+    rephrase the follow-up question to be a STANDALONE question.
+    
+    If the follow-up question is a new topic, return it EXACTLY as it is.
+    If it refers to a previous product or order (e.g., using "it", "that", "the price"), 
+    include the specific product/order name in the new question.
+
+    CHAT HISTORY:
+    {history_str}
+
+    FOLLOW-UP QUESTION: {current_question}
+
+    STANDALONE QUESTION:"""
+
+    response = groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0
+    )
+    
+    standalone_query = response.choices[0].message.content.strip()
+    return standalone_query
+
 # --- 4. RAG SEARCH (Vector Search) ---
 def ask_rag_ai(question):
     # 1. Generate the vector
