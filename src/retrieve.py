@@ -38,37 +38,107 @@ def validate_query(question, max_tokens=MAX_TOKEN):
 
 def reformulate_question(current_question, chat_history):
     """
-    Analyzes history and current question to create a standalone query.
+    Hybrid Reformulator: Uses Keyword Detection + Semantic Context Injection.
     """
     if not chat_history:
         return current_question
-
-    # Format history for the prompt
-    history_str = "\n".join([f"{m['role']}: {m['content']}" for m in chat_history[-5:]])
-
-    prompt = f"""
-    Given the following conversation history and a follow-up question, 
-    rephrase the follow-up question to be a STANDALONE question.
     
-    If the follow-up question is a new topic, return it EXACTLY as it is.
-    If it refers to a previous product or order (e.g., using "it", "that", "the price"), 
-    include the specific product/order name in the new question.
-
-    CHAT HISTORY:
-    {history_str}
-
-    FOLLOW-UP QUESTION: {current_question}
-
-    STANDALONE QUESTION:"""
-
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0
-    )
+    # 1. EXPANDED KEYWORD HEURISTICS (Fast Check)
+    context_keywords = [
+        "it", "that", "those", "them", "this", "these", 
+        "the price", "its", "why", "the specs", "status",
+        "how much", "when", "where", "what about", "tell me more",
+        "compare", "difference", "back to", "again", "also",
+        "one", "other", "another"
+    ]
     
-    standalone_query = response.choices[0].message.content.strip()
-    return standalone_query
+    # Use substring search instead of split for better matching
+    needs_context = any(word in current_question.lower() for word in context_keywords)
+    
+    if not needs_context:
+        system_log(f"⚡ Fast-Pass: Standalone Query detected.")
+        return current_question
+    
+    # 2. ENTITY EXTRACTION FROM HISTORY (Fixed order - chronological)
+    recent_context = ""
+    for msg in chat_history[-4:]:  # Removed reversed() for natural flow
+        recent_context += f"{msg['role']}: {msg['content']}\n"
+    
+    # 3. INTELLIGENT REWRITE PROMPT (Enhanced)
+    prompt = f"""You are a Query Refinement Engine for a Smartphone POS system.
+
+TASK: Rewrite the user's question as a standalone query by adding context from history.
+
+RULES:
+1. Replace pronouns (it, that, its, them, those, this, these) with actual Product Names or Order IDs from history
+2. If "why" is asked after a status, include both status and entity (e.g., "Why is Order 118 delayed?")
+3. If "them/those" refers to multiple items, include ALL items mentioned
+4. Preserve technical terms exactly (LKR, 5G, OLED, GB, etc.)
+5. If the question is already standalone, return it unchanged
+6. Output ONLY the rewritten question, no preamble or explanation
+
+EXAMPLES:
+History: "iPhone 15 costs LKR 192,000"
+Question: "What about its warranty?"
+Output: What is the warranty for iPhone 15?
+
+History: "Order 118 is delayed"
+Question: "Why?"
+Output: Why is Order 118 delayed?
+
+History: "iPhone 15 and Samsung S24 available"
+Question: "Compare them"
+Output: Compare iPhone 15 and Samsung S24
+
+RECENT HISTORY:
+{recent_context}
+
+USER QUESTION: {current_question}
+
+STANDALONE QUERY:"""
+    
+    try:
+        response = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "You are a precise query rewriter. Output only the rewritten query with no additional text."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0,
+            max_tokens=100
+        )
+        
+        refined_query = response.choices[0].message.content.strip()
+        
+        # Validation: Check if output is valid
+        if not refined_query or len(refined_query) < 3:
+            system_log(f"⚠️ Invalid reformulation output, using original")
+            return current_question
+        
+        # Remove common LLM preambles if present
+        preamble_phrases = ["here's the", "the rewritten", "standalone query:", "output:"]
+        refined_lower = refined_query.lower()
+        for phrase in preamble_phrases:
+            if phrase in refined_lower:
+                # Extract actual query after preamble
+                parts = refined_query.split(':', 1)
+                if len(parts) > 1:
+                    refined_query = parts[1].strip()
+                break
+        
+        # Log the transformation
+        if refined_query != current_question:
+            system_log(f"🧠 Reformulated: '{current_question}' → '{refined_query}'")
+        else:
+            system_log(f"🧠 No change needed (already standalone)")
+        
+        return refined_query
+        
+    except Exception as e:
+        system_log(f"❌ Reformulation failed: {e}, using original question")
+        return current_question
+
+
 
 # --- 4. RAG SEARCH (Vector Search) ---
 def ask_rag_ai(question):
@@ -220,7 +290,7 @@ def ask_both_ai(question):
                 - Start with the DATABASE FACTS (numbers, status, dates)
                 - Then add CONTEXT/EXPLANATION from Knowledge Base if available
                 - Keep your answer concise and factual
-                - Always cite which source you're using: "According to the database..." or "The knowledge base explains..."
+                - dont say youte getting answer from knowledge base or databse just say only answer ."
 
                 Remember: It's better to say "I don't know" than to guess or hallucinate."""
                             },
