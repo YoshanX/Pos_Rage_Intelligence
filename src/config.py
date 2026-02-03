@@ -16,7 +16,9 @@ if GROQ_API_KEY is not None:
 else:
     print("API Key not found. Please check your .env file and environment setup.")
 
-
+REDIS_HOST='localhost'
+REDIS_PORT=6379
+REDIS_PASSWORD=None
 
 # --- 1. CONFIGURATION ---
 DB_CONFIG = {

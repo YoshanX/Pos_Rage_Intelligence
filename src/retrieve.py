@@ -3,6 +3,7 @@ from db_connection import get_connection
 import psycopg2
 from sentence_transformers import SentenceTransformer
 from logger import system_log
+from memory_manager import get_chat_history
 
 
 
@@ -12,7 +13,7 @@ def validate_query(question, max_tokens=MAX_TOKEN):
     """
     # 1. Clean the input
     clean_question = question.strip()
-    if not clean_question or len(clean_question) < 3:
+    if not clean_question or len(clean_question) < 1:
         return False, "Query rejected: The input is empty or too short to process."
 
     # 2. Tokenize and check length (Cost & Performance Guardrail)
@@ -36,11 +37,13 @@ def validate_query(question, max_tokens=MAX_TOKEN):
     return True, None
 
 
-def reformulate_question(current_question, chat_history):
+def reformulate_question(current_question, session_id):
     """
     Hybrid Reformulator: Uses Keyword Detection + Semantic Context Injection.
+    
     """
-    if not chat_history:
+    history = get_chat_history(session_id, window_size=6)
+    if not history:
         return current_question
     
     # 1. EXPANDED KEYWORD HEURISTICS (Fast Check)
@@ -60,52 +63,62 @@ def reformulate_question(current_question, chat_history):
         return current_question
     
     # 2. ENTITY EXTRACTION FROM HISTORY (Fixed order - chronological)
-    recent_context = ""
-    for msg in chat_history[-4:]:  # Removed reversed() for natural flow
-        recent_context += f"{msg['role']}: {msg['content']}\n"
-    
+    recent_context = "\n".join([f"{m['role']}: {m['content']}" for m in history])
     # 3. INTELLIGENT REWRITE PROMPT (Enhanced)
-    prompt = f"""You are a Query Refinement Engine for a Smartphone POS system.
-
-TASK: Rewrite the user's question as a standalone query by adding context from history.
-
-RULES:
-1. Replace pronouns (it, that, its, them, those, this, these) with actual Product Names or Order IDs from history
-2. If "why" is asked after a status, include both status and entity (e.g., "Why is Order 118 delayed?")
-3. If "them/those" refers to multiple items, include ALL items mentioned
-4. Preserve technical terms exactly (LKR, 5G, OLED, GB, etc.)
-5. If the question is already standalone, return it unchanged
-6. Output ONLY the rewritten question, no preamble or explanation
-
-EXAMPLES:
-History: "iPhone 15 costs LKR 192,000"
-Question: "What about its warranty?"
-Output: What is the warranty for iPhone 15?
-
-History: "Order 118 is delayed"
-Question: "Why?"
-Output: Why is Order 118 delayed?
-
-History: "iPhone 15 and Samsung S24 available"
-Question: "Compare them"
-Output: Compare iPhone 15 and Samsung S24
-
-RECENT HISTORY:
-{recent_context}
-
-USER QUESTION: {current_question}
-
-STANDALONE QUERY:"""
+    
     
     try:
         response = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are a precise query rewriter. Output only the rewritten query with no additional text."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0,
-            max_tokens=100
+    {
+        "role": "system", 
+        "content": """You are a Query Refinement Engine for a Smartphone POS system. 
+        Your goal is to rewrite the user's question as a standalone query ONLY if it is a follow-up
+
+        CORE RULES (ALWAYS FOLLOW):
+        1. Replace pronouns (it, that, its, them, those, this, these) with actual Product Names or Order IDs from history
+        2. If "why" is asked after a status, include both status and entity (e.g., "Why is Order 118 delayed?")
+        3. If "them/those" refers to multiple items, include ALL items mentioned
+        4. Preserve technical terms exactly (LKR, 5G, OLED, GB, etc.)
+        5. If the question is already standalone, return it unchanged
+        6. Output ONLY the rewritten question, no preamble or explanation
+        7.**TOPIC SHIFT / GLOBAL QUERIES (CRITICAL):** - If the user asks for "all models," "everything," "full list," or "inventory," this is a GLOBAL request.
+   - **DO NOT** include specific product names from the history in a Global request. 
+   - Incorrect: "Give all smartphone models including Pixel 7a..."
+   - Correct: "List all smartphone models and their quantities."
+        8.corect spelling mistakes question if any
+
+
+        EXAMPLES:
+        History: "iPhone 15 costs LKR 192,000"
+        Question: "What about its warranty?"
+        Output: What is the warranty for iPhone 15?
+
+        History: "Order 118 is delayed"
+        Question: "Why?"
+        Output: Why is Order 118 delayed?
+
+        History: "iPhone 15 and Samsung S24 available"
+        Question: "Compare them"
+        Output: Compare iPhone 15 and Samsung S24
+        Question: "what is the pric of i phone 15"
+        Output: what is the price of iPhone 15
+        
+        
+        """
+            },
+            {
+                "role": "user", 
+                "content": f"""RECENT HISTORY:
+        {recent_context}
+
+        USER QUESTION: {current_question}
+
+        STANDALONE QUERY:"""
+            }
+        ],
+            temperature=0
         )
         
         refined_query = response.choices[0].message.content.strip()
@@ -142,31 +155,62 @@ STANDALONE QUERY:"""
 
 # --- 4. RAG SEARCH (Vector Search) ---
 def ask_rag_ai(question):
-    # 1. Generate the vector
     system_log("🔍 Generating embedding for RAG search...")
-    question_vector = embed_model.encode(question).tolist()
+    
+    # FIX 1: Extract clean search terms for keyword search
+    import re
+    filler_words = ['give', 'me', 'show', 'tell', 'what', 'is', 'the', 'of', 'specs', 'spec']
+    search_terms = ' '.join([w for w in question.lower().split() if w not in filler_words])
+    
+    # FIX 2: Enhance query for better vector matching
+    enhanced_query = f"{question} specifications features display camera"
+    question_vector = embed_model.encode(enhanced_query).tolist()
+    
     conn = get_connection()
     cur = conn.cursor()
-    print(len(question_vector))
-
     
-    # 2. INCREASE THE LIMIT (Pull more chunks to ensure the correct one is in the net)
+    # FIX 3: Simplified query - rely more on vector search
     search_query = """
+    WITH vector_matches AS (
+        SELECT 
+            kb_id, 
+            1 - (embedding <=> %s::vector) AS v_score
+        FROM knowledge_base
+        WHERE embedding IS NOT NULL 
+          AND (1 - (embedding <=> %s::vector)) >= 0.7  -- Only consider high-similarity vectors
+        ORDER BY v_score DESC
+        LIMIT 20
+    ),
+    keyword_matches AS (
+        SELECT 
+            kb_id, 
+            ts_rank_cd(to_tsvector('simple', title || ' ' || content), 
+                      plainto_tsquery('simple', %s)) AS k_score
+        FROM knowledge_base
+        WHERE to_tsvector('simple', title || ' ' || content) @@ plainto_tsquery('simple', %s)
+        LIMIT 20
+    )
     SELECT 
-        '[' || document_type || '] ' || title || ' (Source: ' || source || '): ' || content AS context,
-        1 - (embedding <=> %s::vector) AS similarity_score
-    FROM knowledge_base
-    ORDER BY embedding <=> %s::vector
+        '[' || document_type || '] ' || title || ': ' || content AS context,
+        COALESCE(v.v_score, 0) AS vector_score,
+        COALESCE(k.k_score, 0) AS keyword_score
+    FROM knowledge_base kb
+    LEFT JOIN vector_matches v ON kb.kb_id = v.kb_id
+    LEFT JOIN keyword_matches k ON kb.kb_id = k.kb_id
+    WHERE v.v_score >= 0.7 OR k.k_score > 0  -- Ensure we only take high-quality hits
+    ORDER BY (COALESCE(v.v_score, 0) * 0.7 + COALESCE(k.k_score, 0) * 0.3) DESC
     LIMIT 6;
-"""
+    """
     
     try:
-        cur.execute(search_query, (question_vector, question_vector))
+        # Pass: enhanced vector, enhanced vector, clean terms, clean terms
+        cur.execute(search_query, (question_vector, question_vector, search_terms, search_terms))
         results = cur.fetchall()
-        # DEBUG: See what chunks were actually found
-        system_log(f"🔍 RAG Chunks Retrieved: {[r[0][:50] for r in results]}")
-        
-        # 3. Create a more "Strict" System Prompt
+
+        # Log the split scores for transparency
+        for r in results:
+            system_log(f"📊 Match: {r[0][:30]}... | Vector: {r[1]:.2f} | Keyword: {r[2]:.2f}")
+
         context = "\n\n".join([r[0] for r in results])
         
         response = groq_client.chat.completions.create(
@@ -197,65 +241,63 @@ def ask_rag_ai(question):
 # --- 5. SQL INSIGHTS (Text-to-SQL) ---
 def ask_sql_ai(question):
     system_log("🧠 Generating SQL query...")
-    # Initial setup
+    
     attempt = 0
     max_attempts = 3
     error_feedback = ""
 
     conn = get_connection()
     cur = conn.cursor()
-    
-    while attempt < max_attempts:
-        attempt += 1
-        
-        # 1. Generate SQL Prompt with previous error feedback if applicable
-        sql_prompt = f"""
-        System: You are a Read-Only PostgreSQL generator. 
-        Task: Generate a SELECT query to answer: {question}
-        SCHEMA: {SCHEMA_INFO}
-        {f"PREVIOUS ERROR: {error_feedback}. Please fix this SQL." if error_feedback else ""}
-        
-        STRICT RULES:
-        1. Respond with ONLY the raw SQL string. No markdown, no intro.
-        2. Use 'ILIKE' with wildcards (%) for text searches.
-        3. Double quote the "order" table.
-        4. Dates use '::date' casting.
-        Query:
-        """
-        
-        sql_response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": sql_prompt}]
-        )
-        
-        generated_sql = sql_response.choices[0].message.content.strip()
-        generated_sql = generated_sql.replace("```sql", "").replace("```", "").replace("\n", " ")
 
-        
-        
-        try:
-            cur.execute(generated_sql)
-            db_results = cur.fetchall()
+    try:
+        while attempt < max_attempts:
+            attempt += 1
+
+            sql_prompt = f"""
+            System: You are a Read-Only PostgreSQL generator. 
+            Task: Generate a SELECT query to answer: {question}
+            SCHEMA: {SCHEMA_INFO}
+            {f"PREVIOUS ERROR: {error_feedback}. Please fix this SQL." if error_feedback else ""}
             
-            # If successful, break the loop and format the answer
-            final_answer = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {"role": "system", "content": "You are a helpful POS assistant. Use only the DB results provided."},
-                    {"role": "user", "content": f"User asked: {question} \n DB results: {db_results}. all prices are  in LKR. If empty, say no record found."}
-                ]
-            )
-            return final_answer.choices[0].message.content
+            STRICT RULES:
+            1. Respond with ONLY the raw SQL string.
+            2. Use ILIKE with %.
+            3. Double quote the "order" table.
+            4. Dates use '::date'.
+            """
 
-        except Exception as e:
-            error_feedback = str(e)
-            system_log(f"⚠️ Attempt {attempt} failed: {error_feedback}")
-            if attempt == max_attempts:
-                system_log( f"❌ SQL Error after {max_attempts} attempts: {error_feedback}")
-                return "I couldn't process that query. Please rephrase your question or contact support."
-        finally:
-            cur.close()
-            conn.close()
+            sql_response = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": sql_prompt}]
+            )
+            system_log(f"🧠 SQL Generation Attempt {attempt}: {sql_response.choices[0].message.content.strip()}")
+            generated_sql = sql_response.choices[0].message.content.strip()
+            generated_sql = generated_sql.replace("```sql", "").replace("```", "").replace("\n", " ")
+
+            try:
+                cur.execute(generated_sql)
+                db_results = cur.fetchall()
+
+                final_answer = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": "You are a helpful POS assistant. Use only the DB results provided."},
+                        {"role": "user", "content": f"User asked: {question}\nDB results: {db_results}. Prices in LKR."}
+                    ]
+                )
+
+                return final_answer.choices[0].message.content
+
+            except Exception as e:
+                error_feedback = str(e)
+                system_log(f"⚠️ Attempt {attempt} failed: {error_feedback}")
+
+        return "I couldn't process that query. Please rephrase your question or contact support."
+
+    finally:
+        cur.close()
+        conn.close()
+
 
 def ask_both_ai(question):
     system_log("🔄 Processing BOTH SQL and RAG...")
@@ -312,3 +354,25 @@ def ask_both_ai(question):
     )
     
     return final_response.choices[0].message.content
+
+
+
+def handle_small_talk(intent, user_name="YoshanX"):
+    """
+    Returns pre-defined responses for greetings and help.
+    """
+    responses = {
+        "GREETING": f"👋 Hello {user_name}! I'm your POS Intelligent Assistant. How can I help you with inventory or orders today?",
+        
+        "ABOUT": (
+            "🤖 **What I can do for you:**\n"
+            "* **Check Stock:** Ask about quantities of models like 'S24 Ultra' or 'iPhone 15'.\n"
+            "* **Order Status:** Check if an order (e.g., 'Order 118') is delayed.\n"
+            "* **Technical Specs:** Ask about camera, battery, or display details.\n"
+            "* **Logistics Info:** Find out why couriers like 'Koombiyo' face delays."
+        ),
+        
+        "CLOSURE": "🙏 You're very welcome! If you need more help with the POS system later, just ask. Have a great day!"
+    }
+    
+    return responses.get(intent, "I'm here to help! Could you please clarify your request?")

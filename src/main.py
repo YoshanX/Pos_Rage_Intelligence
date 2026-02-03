@@ -3,11 +3,11 @@ import os
 import time
 from db_connection import setup_database
 from intent import identify_intent
-from retrieve import ask_sql_ai, ask_rag_ai, ask_both_ai, validate_query,reformulate_question
+from retrieve import ask_sql_ai, ask_rag_ai, ask_both_ai, validate_query,reformulate_question, handle_small_talk
 from ingest import ingest_to_knowledge_base
 from logger import log_transaction
 from logger import system_log
-
+from memory_manager import save_message,clear_history,get_chat_history
 
 # Page Configuration
 st.set_page_config(page_title="POS RAG Intelligence", page_icon="🤖", layout="wide")
@@ -21,7 +21,7 @@ def init_system():
 init_system()
 system_log("🚀 Application Started.")
 
-
+session_id = "user_123"
 # --- Sidebar Admin Controls ---
 with st.sidebar:
     st.header("⚙️ Admin Controls")
@@ -52,6 +52,7 @@ with st.sidebar:
     # 2. Clear Chat & Cache Button
     if st.button("🗑️ Clear Chat & Cache"):
         st.session_state.messages = []
+        clear_history(session_id)
         st.cache_resource.clear()
         st.rerun()
 
@@ -77,34 +78,64 @@ if query := st.chat_input("Ex: Why is order 118 delayed?"):
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user"):
         st.markdown(query)
-
+    
     with st.chat_message("assistant"):
-        standalone_query = reformulate_question(query, st.session_state.messages)
+        standalone_query = reformulate_question(query, session_id)
 
-        # 2. LOG it (Using your new logger)
-        system_log(f"🔄 Original: {query} -> Standalone: {standalone_query}")
-        with st.spinner("Analyzing Pos_dbc & Knowledge Base..."):
-            is_safe, error_message = validate_query(standalone_query)
-            if not is_safe:
-                answer = f"⚠️ **Guardrail Triggered:** {error_message}"
-                route = "BLOCKED"
-            else:
+# 2. Identify Intent
+        intent = identify_intent(standalone_query)
+
+        # 3. Execution Path
+        if intent in ["GREETING", "ABOUT", "CLOSURE"]:
+            answer = handle_small_talk(intent)
+            # Skip the expensive DB/RAG calls
+            latency = 0.05
+
+
+            # 2. LOG it (Using your new logger)
+            system_log(f"🔄 Original: {query} -> Standalone: {standalone_query}")
+            with st.spinner("Analyzing Pos_dbc & Knowledge Base..."):
+                is_safe, error_message = validate_query(standalone_query)
                 
-                route = identify_intent(standalone_query)
+                    
+
+                save_message(session_id, "user", query)
+                save_message(session_id, "assistant", answer)
+                system_log(get_chat_history(session_id, window_size=6))
+                latency = time.time() - start_time
+                log_transaction(query, intent, latency, answer) 
+                st.markdown(answer)
+                st.session_state.messages.append({"role": "assistant", "content": answer})
+                system_log(f"✅ Response delivered in {latency:.2f} seconds via {intent} route.")
                 
-                if "BOTH" in route:
-                    st.caption("🔀 Path: BOTH (SQL + RAG)")
-                    answer = ask_both_ai(standalone_query)
-                elif "SQL" in route:
-                    st.caption("🔍 Path: SQL")
-                    answer = ask_sql_ai(standalone_query)
+        else:    
+
+            # 2. LOG it (Using your new logger)
+            system_log(f"🔄 Original: {query} -> Standalone: {standalone_query}")
+            with st.spinner("Analyzing Pos_dbc & Knowledge Base..."):
+                is_safe, error_message = validate_query(standalone_query)
+                if not is_safe:
+                    answer = f"⚠️ **Guardrail Triggered:** {error_message}"
+                    route = "BLOCKED"
                 else:
-                    st.caption("📚 Path: RAG")
-                    answer = ask_rag_ai(standalone_query)
+                    
+                    route = identify_intent(standalone_query)
+                    
+                    if "BOTH" in route:
+                        st.caption("🔀 Path: BOTH (SQL + RAG)")
+                        answer = ask_both_ai(standalone_query)
+                    elif "SQL" in route:
+                        st.caption("🔍 Path: SQL")
+                        answer = ask_sql_ai(standalone_query)
+                    else:
+                        st.caption("📚 Path: RAG")
+                        answer = ask_rag_ai(standalone_query)
 
-
-            latency = time.time() - start_time
-            log_transaction(query, route, latency, answer) 
-            st.markdown(answer)
-            st.session_state.messages.append({"role": "assistant", "content": answer})
-            system_log(f"✅ Response delivered in {latency:.2f} seconds via {route} route.")
+                save_message(session_id, "user", query)
+                save_message(session_id, "assistant", answer)
+                system_log(get_chat_history(session_id, window_size=6))
+                latency = time.time() - start_time
+                log_transaction(query, route, latency, answer) 
+                st.markdown(answer)
+                st.session_state.messages.append({"role": "assistant", "content": answer})
+                system_log(f"✅ Response delivered in {latency:.2f} seconds via {route} route.")

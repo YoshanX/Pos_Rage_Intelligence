@@ -2,6 +2,22 @@ from config import groq_client
 from logger import system_log
 
 def identify_intent(question):
+
+    """
+    Categorizes the user's input to decide the execution path.
+    """
+    # 1. Manual keyword check for extreme speed
+    q = question.lower().strip()
+    
+    if q in ["hi", "hello", "hey", "good morning", "good evening"]:
+        return "GREETING"
+    
+    if any(word in q for word in ["help", "what can you do", "features", "how to use"]):
+        return "ABOUT"
+        
+    if any(word in q for word in ["bye", "thank you", "thanks", "exit"]):
+        return "CLOSURE"
+    # 2. Use LLM-based classification for more complex queries
     """
     Refined intent classifier using few-shot examples for Avenir IT POS.
     Routes to SQL (Data), RAG (Specs/Policy), or BOTH (Data + Reason).

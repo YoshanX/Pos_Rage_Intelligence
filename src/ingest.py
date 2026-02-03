@@ -68,7 +68,8 @@ def ingest_to_knowledge_base(file_list):
             # Generate vector for the CONTENT
             try:
                 
-                embedding = embed_model.encode(rec['content']).tolist()
+                text_to_embed = f"{rec['title']} {rec['content']}"
+                embedding = embed_model.encode(text_to_embed).tolist()
                 
                 cur.execute("""
                     INSERT INTO knowledge_base (document_type, title, content, source, embedding)
