@@ -4,6 +4,7 @@ import psycopg2
 from sentence_transformers import SentenceTransformer
 from groq import Groq
 from dotenv import load_dotenv
+from logger import system_log
 
 # Load environment variables from .env file
 load_dotenv()
@@ -12,9 +13,13 @@ load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if GROQ_API_KEY is not None:
-    print(f"API Key successfully loaded. Key starts with: {GROQ_API_KEY[:5]}...")
+    system_log(f"API Key successfully loaded. Key starts with: {GROQ_API_KEY[:5]}...")
 else:
-    print("API Key not found. Please check your .env file and environment setup.")
+    system_log("API Key not found. Please check your .env file and environment setup.")
+
+# Roles-based Model Mapping
+LARGE_MODEL = "llama-3.3-70b-versatile"  # High-reasoning (SQL, Synthesis)
+FAST_MODEL = "llama-3.1-8b-instant"     # Low-latency (Intent, Refinement)    
 
 REDIS_HOST='localhost'
 REDIS_PORT=6379
@@ -30,10 +35,10 @@ DB_CONFIG = {
 }
 
 
-
 # Model for local embeddings (384 dimensions)
 embed_model = SentenceTransformer('all-MiniLM-L6-v2') 
 groq_client = Groq(api_key=GROQ_API_KEY)
+
 MAX_TOKEN=1000
 # Complete Schema Info for SQL Insights
 SCHEMA_INFO = """

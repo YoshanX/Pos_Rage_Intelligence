@@ -1,17 +1,16 @@
-from config import embed_model, groq_client, SCHEMA_INFO, DB_CONFIG, MAX_TOKEN
+from config import embed_model, groq_client, SCHEMA_INFO, DB_CONFIG, MAX_TOKEN, FAST_MODEL, LARGE_MODEL
 from db_connection import get_connection
 import psycopg2
 from sentence_transformers import SentenceTransformer
 from logger import system_log
 from memory_manager import get_chat_history
 from psycopg2.extras import RealDictCursor
+import re
 
 
 
 def validate_query(question, max_tokens=MAX_TOKEN):
-    """
-    Validates user input for length, content, and security risks.
-    """
+   
     # 1. Clean the input
     clean_question = question.strip()
     if not clean_question or len(clean_question) < 1:
@@ -22,17 +21,18 @@ def validate_query(question, max_tokens=MAX_TOKEN):
     token_count = len(tokens)
     
     if token_count > max_tokens:
-        system_log(f"⚠️ Guardrail Triggered: Query is {token_count} tokens (Max: {max_tokens})")
+        system_log(f" Guardrail Triggered: Query is {token_count} tokens (Max: {max_tokens})")
         return False, f"Your question is too long ({token_count} tokens). Please keep it under {max_tokens} tokens."
     
     # 3. Security Check (SQL Injection Guardrail)
     # Checks for forbidden administrative/destructive keywords
+
     forbidden_keywords = ["DROP", "DELETE", "UPDATE", "INSERT", "TRUNCATE", "ALTER", "CREATE"]
     # Check if any forbidden word is present as a standalone word (case-insensitive)
     upper_question = clean_question.upper().split()
     for word in forbidden_keywords:
         if word in upper_question:
-            system_log(f"🚨 Security Alert: Prohibited keyword '{word}' detected.")
+            system_log(f" Security Alert: Prohibited keyword '{word}' detected.")
             return False, "Security rejection: You are not authorized to perform data modification commands."
 
     return True, None
@@ -56,7 +56,7 @@ def reformulate_question(current_question, session_id):
     needs_context = any(word in current_question.lower() for word in context_keywords)
     
     if not needs_context:
-        system_log(f"⚡ Fast-Pass: Standalone Query detected.")
+        system_log(f" Fast-Pass: Standalone Query detected.")
         return current_question
     
     # 2. ENTITY EXTRACTION FROM HISTORY (Fixed order - chronological)
@@ -66,7 +66,7 @@ def reformulate_question(current_question, session_id):
     
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=LARGE_MODEL,
             messages=[
     {
         "role": "system", 
@@ -81,10 +81,10 @@ def reformulate_question(current_question, session_id):
         5. If the question is already standalone, return it unchanged
         6. Output ONLY the rewritten question, no preamble or explanation
         7.**TOPIC SHIFT / GLOBAL QUERIES (CRITICAL):** - If the user asks for "all models," "everything," "full list," or "inventory," this is a GLOBAL request.
-   - **DO NOT** include specific product names from the history in a Global request. 
-   - Incorrect: "Give all smartphone models including Pixel 7a..."
-   - Correct: "List all smartphone models and their quantities."
-        8. Correct spelling mistakes in the question if any
+            - **DO NOT** include specific product names from the history in a Global request. 
+            - Incorrect: "Give all smartphone models including Pixel 7a..."
+            - Correct: "List all smartphone models and their quantities."
+                    8. Correct spelling mistakes in the question if any
 
 
         EXAMPLES:
@@ -125,13 +125,13 @@ def reformulate_question(current_question, session_id):
         }
 
         # 3. Log it for your System Audit
-        system_log(f"🎫 Tokens Used reformulate_question - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
+        system_log(f" Tokens Used reformulate_question - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
         
         refined_query = response.choices[0].message.content.strip()
         
         # Validation: Check if output is valid
         if not refined_query or len(refined_query) < 3:
-            system_log(f"⚠️ Invalid reformulation output, using original")
+            system_log(f" Invalid reformulation output, using original")
             return current_question
         
         # Remove common LLM preambles if present
@@ -147,26 +147,26 @@ def reformulate_question(current_question, session_id):
         
         # Log the transformation
         if refined_query != current_question:
-            system_log(f"🧠 Reformulated: '{current_question}' → '{refined_query}'")
+            system_log(f" Reformulated: '{current_question}' → '{refined_query}'")
         else:
-            system_log(f"🧠 No change needed (already standalone)")
+            system_log(f" No change needed (already standalone)")
         
         return refined_query
         
     except Exception as e:
-        system_log(f"❌ Reformulation failed: {e}, using original question")
+        system_log(f" Reformulation failed: {e}, using original question")
         return current_question
 
 
 
 # --- 4. RAG SEARCH (Vector Search) ---
 def ask_rag_ai(question):
-    system_log("🔍 Generating embedding for RAG search...")
+    system_log(" Generating embedding for RAG search...")
     #question='What is the reason for Koombiyo courier service delays?'
 
    
     # FIX 1: Extract clean search terms for keyword search
-    import re
+    
     filler_words = ['give', 'me', 'show', 'tell', 'what', 'is', 'the', 'of', 'specs', 'spec']
     search_terms = ' '.join([w for w in question.lower().split() if w not in filler_words])
     
@@ -214,22 +214,22 @@ def ask_rag_ai(question):
         # Pass: enhanced vector, enhanced vector, clean terms, clean terms
         cur.execute(search_query, (question_vector, question_vector, search_terms, search_terms))
         results = cur.fetchall()
-        system_log(f"🔍 Database returned {len(results)} results")
+        system_log(f" Database returned {len(results)} results")
     
         if not results:
-            system_log("⚠️ NO RESULTS from vector+keyword search!")
+            system_log(" NO RESULTS from vector+keyword search!")
             system_log(f"   Search terms: '{search_terms}'")
             system_log(f"   Enhanced query: '{question_vector[:50]}'")
             return "I couldn't find relevant information..."
 
         # Log the split scores for transparency
         for r in results:
-            system_log(f"📊 Match: {r[0][:30]}... | Vector: {r[1]:.2f} | Keyword: {r[2]:.2f}")
+            system_log(f" Match: {r[0][:30]}... | Vector: {r[1]:.2f} | Keyword: {r[2]:.2f}")
 
         context = "\n\n".join([r[0] for r in results])
         system_log(f"context {context}")
         response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=LARGE_MODEL,
             messages=[
                 {
                     "role": "system", 
@@ -253,19 +253,19 @@ def ask_rag_ai(question):
         }
 
         # 3. Log it for your System Audit
-        system_log(f"🎫 Tokens Used ask_rag_ai - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
+        system_log(f" Tokens Used ask_rag_ai - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
         system_log(f"Model dimension: {len(question_vector)}")
         return response.choices[0].message.content
 
     except Exception as e:
-        return f"❌ Retrieval Error: {e}"
+        return f" Retrieval Error: {e}"
     finally:
         cur.close()
         conn.close()
 
 # --- 5. SQL INSIGHTS (Text-to-SQL) ---
 def ask_sql_ai(question):
-    system_log("🧠 Generating SQL query...")
+    system_log(" Generating SQL query...")
     
     attempt = 0
     max_attempts = 3
@@ -307,7 +307,7 @@ def ask_sql_ai(question):
                 """
 
             sql_response = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=LARGE_MODEL,
                 messages=[{"role": "user", "content": sql_prompt}]
             )
             usage = sql_response.usage
@@ -318,21 +318,21 @@ def ask_sql_ai(question):
             }
 
         # 3. Log it for your System Audit
-            system_log(f"🎫 Tokens Used sql_response - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
-            system_log(f"🧠 SQL Generation Attempt {attempt}: {sql_response.choices[0].message.content.strip()}")
+            system_log(f" Tokens Used sql_response - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
+            system_log(f" SQL Generation Attempt {attempt}: {sql_response.choices[0].message.content.strip()}")
             generated_sql = sql_response.choices[0].message.content.strip()
             generated_sql = (generated_sql
                 .replace("```sql", "")
                 .replace("```", "")
-                .replace(";--", "")  # Remove comment attempts
+                .replace(";--", "")  
                 .strip()
                 .split(';')[0])
 
             try:
                 cur.execute(generated_sql)
                 db_results = cur.fetchall()
-                system_log(f"✅ generated SQL executed successfully: {generated_sql}")
-                system_log(f"✅ db_results: {db_results}")
+                system_log(f" generated SQL executed successfully: {generated_sql}")
+                system_log(f" db_results: {db_results}")
 
                 final_answer = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
@@ -362,13 +362,13 @@ def ask_sql_ai(question):
                 }
 
             # 3. Log it for your System Audit
-                system_log(f"🎫 Tokens Used sql final_answer - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
+                system_log(f" Tokens Used sql final_answer - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
 
                 return final_answer.choices[0].message.content
 
             except Exception as e:
                 error_feedback = str(e)
-                system_log(f"⚠️ Attempt {attempt} failed: {error_feedback}")
+                system_log(f" Attempt {attempt} failed: {error_feedback}")
 
         return "I couldn't process that . Try Again or Please rephrase your question or contact support."
 
@@ -379,7 +379,7 @@ def ask_sql_ai(question):
 
 
 def get_raw_ai(question):
-    system_log("🧠 Generating Raw query...")
+    system_log(" Generating Raw query...")
     
     attempt = 0
     max_attempts = 3
@@ -422,7 +422,7 @@ def get_raw_ai(question):
                 """
 
             sql_response = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=LARGE_MODEL,
                 messages=[{"role": "user", "content": sql_prompt}]
             )
             usage = sql_response.usage
@@ -433,8 +433,8 @@ def get_raw_ai(question):
             }
 
         # 3. Log it for your System Audit
-            system_log(f"🎫 Tokens Used sql_response - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
-            system_log(f"🧠 SQL Generation Attempt {attempt}: {sql_response.choices[0].message.content.strip()}")
+            system_log(f" Tokens Used sql_response - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
+            system_log(f" SQL Generation Attempt {attempt}: {sql_response.choices[0].message.content.strip()}")
             generated_sql = sql_response.choices[0].message.content.strip()
             generated_sql = (generated_sql
                 .replace("```sql", "")
@@ -446,8 +446,8 @@ def get_raw_ai(question):
             try:
                 cur.execute(generated_sql)
                 db_results = cur.fetchall()
-                system_log(f"✅ generated SQL executed successfully: {generated_sql}")
-                system_log(f"✅ db_results: {db_results}")
+                system_log(f" generated SQL executed successfully: {generated_sql}")
+                system_log(f" db_results: {db_results}")
                 conn.commit()
 
                 return db_results
@@ -455,7 +455,7 @@ def get_raw_ai(question):
             except Exception as e:
                 conn.rollback()
                 error_feedback = str(e)
-                system_log(f"⚠️ Attempt {attempt} failed: {error_feedback}")
+                system_log(f" Attempt {attempt} failed: {error_feedback}")
 
         return "I couldn't process that database request."
 
@@ -465,7 +465,7 @@ def get_raw_ai(question):
 
 
 def ask_both_ai(question):
-    system_log("🔄 Processing BOTH SQL and RAG...")
+    system_log(" Processing BOTH SQL and RAG...")
     # Step A: Get the factual data from SQL
     # We use a simpler version of the SQL function that just returns raw data
     db_results = get_raw_ai(question) 
@@ -500,21 +500,21 @@ def ask_both_ai(question):
 
     # Use a fast model for this intermediate step
     refine_response = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model=FAST_MODEL,
         messages=[{"role": "user", "content": refine_prompt}],
         temperature=0
     )
     optimized_query = refine_response.choices[0].message.content.strip()
-    system_log(f"🧠 Optimized RAG Query: {optimized_query}")
+    system_log(f" Optimized RAG Query: {optimized_query}")
 
     kb_context = ask_rag_ai(optimized_query)
     #kb_context = ask_rag_ai(question)
-    system_log(f"🔍 RAG Context Retrieved: {kb_context[:200]}...")  # Log the first 200 chars of context
+    system_log(f" RAG Context Retrieved: {kb_context[:200]}...")  # Log the first 200 chars of context
     
     # Step C: Final Synthesis
     # Send everything to Groq to explain the "Delayed because of X" reason
     final_response = groq_client.chat.completions.create(
-    model="llama-3.3-70b-versatile",
+    model=LARGE_MODEL,
     messages=[
         {
             "role": "system",
@@ -554,7 +554,7 @@ def ask_both_ai(question):
     }
 
 # 3. Log it for your System Audit
-    system_log(f"🎫 Tokens Used both answer - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
+    system_log(f" Tokens Used both answer - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
     
     return final_response.choices[0].message.content
 

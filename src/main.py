@@ -19,7 +19,7 @@ def init_system():
     return True
 
 init_system()
-system_log("🚀 Application Started.")
+system_log(" Application Started.")
 
 session_id = "user_123"
 # --- Sidebar Admin Controls ---
@@ -27,7 +27,7 @@ with st.sidebar:
     st.header("⚙️ Admin Controls")
     
     # 1. Data Ingestion Button
-    if st.button("🔄 Sync Knowledge Base"):
+    if st.button(" Sync Knowledge Base"):
         files_to_process = [
             '../data/all_product_specs.txt', 
             '../data/all_warranties.txt', 
@@ -93,7 +93,7 @@ if query := st.chat_input("Ex: Why is order 118 delayed?"):
 
 
             # 2. LOG it (Using your new logger)
-            system_log(f"🔄 Original: {query} -> Standalone: {standalone_query}")
+            system_log(f" Original: {query} -> Standalone: {standalone_query}")
             with st.spinner("Analyzing Pos_dbc & Knowledge Base..."):
                 is_safe, error_message = validate_query(standalone_query)
                 
@@ -106,12 +106,12 @@ if query := st.chat_input("Ex: Why is order 118 delayed?"):
                 log_transaction(query, intent, latency, answer) 
                 st.markdown(answer)
                 st.session_state.messages.append({"role": "assistant", "content": answer})
-                system_log(f"✅ Response delivered in {latency:.2f} seconds via {intent} route.")
+                system_log(f" Response delivered in {latency:.2f} seconds via {intent} route.")
                 
         else:    
 
             # 2. LOG it (Using your new logger)
-            system_log(f"🔄 Original: {query} -> Standalone: {standalone_query}")
+            system_log(f" Original: {query} -> Standalone: {standalone_query}")
             with st.spinner("Analyzing Pos_dbc & Knowledge Base..."):
                 is_safe, error_message = validate_query(standalone_query)
                 if not is_safe:
@@ -138,4 +138,4 @@ if query := st.chat_input("Ex: Why is order 118 delayed?"):
                 log_transaction(query, route, latency, answer) 
                 st.markdown(answer)
                 st.session_state.messages.append({"role": "assistant", "content": answer})
-                system_log(f"✅ Response delivered in {latency:.2f} seconds via {route} route.")
+                system_log(f" Response delivered in {latency:.2f} seconds via {route} route.")

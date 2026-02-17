@@ -1,4 +1,4 @@
-from config import groq_client
+from config import groq_client, FAST_MODEL
 from logger import system_log
 
 def identify_intent(question):
@@ -25,33 +25,33 @@ def identify_intent(question):
     
     routing_prompt = f"""Classify query intent for POS system.
 
-USER QUESTION: "{question}"
+            USER QUESTION: "{question}"
 
-CATEGORIES:
-**SQL** - Database facts (price, stock, status, count, date)
-**RAG** - Knowledge info (specs, features, warranty, policy, compare)
-**BOTH** - Data + explanation (why, reason, cause)
+            CATEGORIES:
+            **SQL** - Database facts (price, stock, status, count, date)
+            **RAG** - Knowledge info (specs, features, warranty, policy, compare)
+            **BOTH** - Data + explanation (why, reason, cause)
 
-KEYWORDS:
-SQL: price, cost, how many, stock, status, order, sold, total, list, show
-RAG: specs, features, warranty, policy, compare, recommend, describe
-BOTH: why, reason, explain, cause, delayed and why, if so why
+            KEYWORDS:
+            SQL: price, cost, how many, stock, status, order, sold, total, list, show
+            RAG: specs, features, warranty, policy, compare, recommend, describe
+            BOTH: why, reason, explain, cause, delayed and why, if so why
 
-EXAMPLES:
-"Price of Xiaomi 14?" → SQL
-"Xiaomi 14 specs?" → RAG
-"Why order 118 delayed?" → BOTH
-"Order 55 status and why delayed?" → BOTH
-"How many Orders are delayed?" → SQL
-"Return policy?" → RAG
-"iPhones sold Jan 5?" → SQL
+            EXAMPLES:
+            "Price of Xiaomi 14?" → SQL
+            "Xiaomi 14 specs?" → RAG
+            "Why order 118 delayed?" → BOTH
+            "Order 55 status and why delayed?" → BOTH
+            "How many Orders are delayed?" → SQL
+            "Return policy?" → RAG
+            "iPhones sold Jan 5?" → SQL
 
-RULE: Contains "why/reason/explain" → BOTH
+            RULE: Contains "why/reason/explain" → BOTH
 
 Answer (one word):"""
 
     response = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model=FAST_MODEL,
         messages=[{"role": "user", "content": routing_prompt}],
         temperature=0.1  # Lower temperature for more consistent classification
     )
@@ -63,7 +63,7 @@ Answer (one word):"""
     }
 
 # 3. Log it for your System Audit
-    system_log(f"🎫 Tokens Used intent - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
+    system_log(f" Tokens Used intent - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
     
     intent = response.choices[0].message.content.strip().upper()
     
@@ -76,5 +76,5 @@ Answer (one word):"""
                 return word
         # Default fallback
         return 'SQL'
-    system_log(f"🛤️ Identified Intent: {intent}")
+    system_log(f" Identified Intent: {intent}")
     return intent
