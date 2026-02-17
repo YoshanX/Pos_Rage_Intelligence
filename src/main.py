@@ -119,7 +119,7 @@ if query := st.chat_input("Ex: Why is order 118 delayed?"):
                     route = "BLOCKED"
                 else:
                     
-                    route = identify_intent(standalone_query)
+                    route = intent
                     
                     if "BOTH" in route:
                         st.caption("🔀 Path: BOTH (SQL + RAG)")

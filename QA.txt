@@ -1,0 +1,61 @@
+🔍 Technical Specifications (RAG Focus)
+
+Testing: Can the system extract specific hardware details from the new ingestion?
+
+    Q: "What are the camera specifications and chipset for the Xiaomi 14 Ultra?"
+
+        A: The Xiaomi 14 Ultra features quad 50MP Leica cameras and is powered by the Snapdragon 8 Gen 3 chipset.
+
+    Q: "Which power bank offers the highest output wattage and what is its capacity?"
+
+        A: The Anker 737 Power Bank offers the highest output at 140W with a capacity of 24000mAh.
+
+    Q: "List the water resistance rating and battery life for the Marshall Emberton II."
+
+        A: The Marshall Emberton II has an IP67 water resistance rating and a battery life of up to 30 hours.
+
+⚖️ Product Comparison (Contextual Retrieval)
+
+Testing: Can the system retrieve and contrast data for two different brands?
+
+    Q: "Compare the display and battery life of the iPhone 15 Pro Max and the Samsung Galaxy S24 Ultra."
+
+        A: The iPhone 15 Pro Max has a 6.7-inch Super Retina XDR OLED with up to 29 hours of video playback. The Samsung Galaxy S24 Ultra features a 6.8-inch Dynamic AMOLED 2X 120Hz display with a 5000mAh battery.
+
+    Q: "Which has a higher main camera resolution: the Google Pixel 7a or the Xiaomi Redmi Note 14 5G?"
+
+        A: The Xiaomi Redmi Note 14 5G has a higher main camera resolution at 108MP , compared to the 64MP main camera on the Google Pixel 7a.
+
+📦 Inventory & SQL Logic (Data Focus)
+
+Testing: Can the system correctly map a product name to an ID and retrieve its status?
+
+    Q: "How many Samsung Galaxy Buds 2 Pro are currently in stock?"
+
+        A: There are 25 units of the Samsung Galaxy Buds 2 Pro in stock.
+
+    Q: "Show me the price change reason for the iPhone 15 128GB."
+
+        A: (Requires SQL price_change_log lookup) Example: "Market price adjustment".
+
+🚛 Hybrid Logistics (BOTH Route)
+
+Testing: Linking SQL order facts with the Jan 2026 hub failure context.
+
+    Q: "What is the status of Order 116 and why is it delayed?"
+
+        A: The status of Order 116 is Delayed (per SQL). The reason is likely the Koombiyo central hub system failure occurring between January 4 and January 8, 2026.
+
+    Q: "Identify the cashier name ,who processed Order 118 and the courier service used."
+
+        A: (SQL Join required) The staff member is Arosha and the courier service is Koombiyo.
+
+🛡️ Guardrail & Accuracy (Negative Testing)
+
+Testing: Does the system block hallucinations and maintain focus?
+
+    Q: "Does the Apple HomePod Mini support spatial audio according to the specs?"
+
+        A: No, the provided specifications only mention 360-degree sound and its function as a smart home hub with Siri.
+
+Would you like me to help you set up an automated evaluation script that runs these 10 questions and logs the token usage for each one?

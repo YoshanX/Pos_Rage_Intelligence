@@ -23,54 +23,47 @@ def identify_intent(question):
     Routes to SQL (Data), RAG (Specs/Policy), or BOTH (Data + Reason).
     """
     
-    routing_prompt = f"""You are a high-precision router for a POS AI.
-    
-    USER QUESTION: "{question}"
+    routing_prompt = f"""Classify query intent for POS system.
 
-    CLASSIFICATION CATEGORIES:
+USER QUESTION: "{question}"
 
-    1. **SQL**: Pure data from tables (Price, Stock, Status, Sales, Dates).
-       - Examples: "How much is iPhone 15?", "List orders from Jan 5", "Is order 101 success?", "How many S24 in stock?" ,"What was the previous price of the Sony WH-1000XM5"
+CATEGORIES:
+**SQL** - Database facts (price, stock, status, count, date)
+**RAG** - Knowledge info (specs, features, warranty, policy, compare)
+**BOTH** - Data + explanation (why, reason, cause)
 
-    2. **RAG**: Descriptions, specs, or policies from the knowledge base.
-       - Examples: "What are the camera specs for Pixel 8?", "What is the 14-day warranty?", "Describe the iPhone 15 features."
+KEYWORDS:
+SQL: price, cost, how many, stock, status, order, sold, total, list, show
+RAG: specs, features, warranty, policy, compare, recommend, describe
+BOTH: why, reason, explain, cause, delayed and why, if so why
 
-    3. **BOTH**: Data lookup followed by an explanation or "Why".
-       - Examples: "Is order 118 delayed and why?", "What is the status of order 118 and give the reason for delay?", "How many sales today and why are they low?"
+EXAMPLES:
+"Price of Xiaomi 14?" → SQL
+"Xiaomi 14 specs?" → RAG
+"Why order 118 delayed?" → BOTH
+"Order 55 status and why delayed?" → BOTH
+"How many Orders are delayed?" → SQL
+"Return policy?" → RAG
+"iPhones sold Jan 5?" → SQL
 
-    FEW-SHOT EXAMPLES:
-    - Q: "What's the price of Xiaomi 14 Ultra?" -> SQL
-    - Q: "Give me the specifications for Xiaomi 14 Ultra." -> RAG
-    - Q: "Why is order 118 delayed?" -> BOTH
-    - Q: "Is order 55 delayed? If yes, why?" -> BOTH
-    - Q: "What is the return policy for smartwatches?" -> RAG
-    - Q: "How many iPhones were sold on Jan 5?" -> SQL
-    - Q: "Tell me about the Koombiyo delivery issue." -> RAG
+RULE: Contains "why/reason/explain" → BOTH
 
-    ROUTING RULE:
-    - If the user asks "WHY", "REASON", or "EXPLAIN" regarding a database status -> BOTH.
-    - If they ask for "SPECS", "FEATURES", or "POLICY" -> RAG.
-    - Otherwise, for counts, prices, and statuses -> SQL.
-
-    YOUR ANSWER (Respond with ONLY one word: SQL, RAG, or BOTH):
-
-    DECISION TREE:
-    1. Does question ask "why" or "reason" or "explain"? → BOTH
-    2. Does question ask for specific numbers/status/data from DB? → SQL
-    3. Does question ask for descriptions/comparisons/policies? → RAG
-
-    CRITICAL: 
-    - If question mentions BOTH data retrieval AND explanation → choose BOTH
-    - "Why" or "reason" questions almost always need BOTH
-    - Status questions without "why" are just SQL
-
-    YOUR ANSWER (one word only):"""
+Answer (one word):"""
 
     response = groq_client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[{"role": "user", "content": routing_prompt}],
         temperature=0.1  # Lower temperature for more consistent classification
     )
+    usage = response.usage
+    token_metadata = {
+        "prompt_tokens": usage.prompt_tokens,
+        "completion_tokens": usage.completion_tokens,
+        "total_tokens": usage.total_tokens
+    }
+
+# 3. Log it for your System Audit
+    system_log(f"🎫 Tokens Used intent - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
     
     intent = response.choices[0].message.content.strip().upper()
     

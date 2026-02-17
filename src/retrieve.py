@@ -4,6 +4,7 @@ import psycopg2
 from sentence_transformers import SentenceTransformer
 from logger import system_log
 from memory_manager import get_chat_history
+from psycopg2.extras import RealDictCursor
 
 
 
@@ -48,11 +49,7 @@ def reformulate_question(current_question, session_id):
     
     # 1. EXPANDED KEYWORD HEURISTICS (Fast Check)
     context_keywords = [
-        "it", "that", "those", "them", "this", "these", 
-        "the price", "its", "why", "the specs", "status",
-        "how much", "when", "where", "what about", "tell me more",
-        "compare", "difference", "back to", "again", "also",
-        "one", "other", "another"
+       "it", "that", "those", "them", "this", "these", "its","why", "reason", "explain", "cause", "delayed and why", "if so why"
     ]
     
     # Use substring search instead of split for better matching
@@ -87,7 +84,7 @@ def reformulate_question(current_question, session_id):
    - **DO NOT** include specific product names from the history in a Global request. 
    - Incorrect: "Give all smartphone models including Pixel 7a..."
    - Correct: "List all smartphone models and their quantities."
-        8.corect spelling mistakes question if any
+        8. Correct spelling mistakes in the question if any
 
 
         EXAMPLES:
@@ -120,6 +117,15 @@ def reformulate_question(current_question, session_id):
         ],
             temperature=0
         )
+        usage = response.usage
+        token_metadata = {
+            "prompt_tokens": usage.prompt_tokens,
+            "completion_tokens": usage.completion_tokens,
+            "total_tokens": usage.total_tokens
+        }
+
+        # 3. Log it for your System Audit
+        system_log(f"🎫 Tokens Used reformulate_question - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
         
         refined_query = response.choices[0].message.content.strip()
         
@@ -156,15 +162,17 @@ def reformulate_question(current_question, session_id):
 # --- 4. RAG SEARCH (Vector Search) ---
 def ask_rag_ai(question):
     system_log("🔍 Generating embedding for RAG search...")
-    
+    #question='What is the reason for Koombiyo courier service delays?'
+
+   
     # FIX 1: Extract clean search terms for keyword search
     import re
     filler_words = ['give', 'me', 'show', 'tell', 'what', 'is', 'the', 'of', 'specs', 'spec']
     search_terms = ' '.join([w for w in question.lower().split() if w not in filler_words])
     
     # FIX 2: Enhance query for better vector matching
-    enhanced_query = f"{question} specifications features display camera"
-    question_vector = embed_model.encode(enhanced_query).tolist()
+    
+    question_vector = embed_model.encode(question).tolist()
     
     conn = get_connection()
     cur = conn.cursor()
@@ -177,7 +185,7 @@ def ask_rag_ai(question):
             1 - (embedding <=> %s::vector) AS v_score
         FROM knowledge_base
         WHERE embedding IS NOT NULL 
-          AND (1 - (embedding <=> %s::vector)) >= 0.7  -- Only consider high-similarity vectors
+          AND (1 - (embedding <=> %s::vector)) >= 0.5  -- Only consider high-similarity vectors
         ORDER BY v_score DESC
         LIMIT 20
     ),
@@ -197,7 +205,7 @@ def ask_rag_ai(question):
     FROM knowledge_base kb
     LEFT JOIN vector_matches v ON kb.kb_id = v.kb_id
     LEFT JOIN keyword_matches k ON kb.kb_id = k.kb_id
-    WHERE v.v_score >= 0.7 OR k.k_score > 0  -- Ensure we only take high-quality hits
+    WHERE v.v_score >= 0.5 OR k.k_score > 0  -- Ensure we only take high-quality hits
     ORDER BY (COALESCE(v.v_score, 0) * 0.7 + COALESCE(k.k_score, 0) * 0.3) DESC
     LIMIT 6;
     """
@@ -206,13 +214,20 @@ def ask_rag_ai(question):
         # Pass: enhanced vector, enhanced vector, clean terms, clean terms
         cur.execute(search_query, (question_vector, question_vector, search_terms, search_terms))
         results = cur.fetchall()
+        system_log(f"🔍 Database returned {len(results)} results")
+    
+        if not results:
+            system_log("⚠️ NO RESULTS from vector+keyword search!")
+            system_log(f"   Search terms: '{search_terms}'")
+            system_log(f"   Enhanced query: '{question_vector[:50]}'")
+            return "I couldn't find relevant information..."
 
         # Log the split scores for transparency
         for r in results:
             system_log(f"📊 Match: {r[0][:30]}... | Vector: {r[1]:.2f} | Keyword: {r[2]:.2f}")
 
         context = "\n\n".join([r[0] for r in results])
-        
+        system_log(f"context {context}")
         response = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
@@ -229,6 +244,16 @@ def ask_rag_ai(question):
                 {"role": "user", "content": f"User is asking about: {question}. Provide only relevant details dont halusinate answers  if not in context say i dont have information."}
             ]
         )
+
+        usage = response.usage
+        token_metadata = {
+            "prompt_tokens": usage.prompt_tokens,
+            "completion_tokens": usage.completion_tokens,
+            "total_tokens": usage.total_tokens
+        }
+
+        # 3. Log it for your System Audit
+        system_log(f"🎫 Tokens Used ask_rag_ai - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
         system_log(f"Model dimension: {len(question_vector)}")
         return response.choices[0].message.content
 
@@ -263,28 +288,81 @@ def ask_sql_ai(question):
             1. Respond with ONLY the raw SQL string.
             2. Use ILIKE with %.
             3. Double quote the "order" table.
-            4. Dates use '::date'.
+            4.Date format in 'YYYY-MM-DD' and use single quotes for dates and strings.
+                EXAMPLES:
+                User: "Show me all orders from January 3rd 2026"
+                SQL: SELECT * FROM "order" WHERE order_date::date = '2026-01-03';
+
+
+             
+                            
             """
+            if error_feedback:
+                sql_prompt += f"""
+                 PREVIOUS ATTEMPT FAILED:
+                - FAILED SQL: {generated_sql}
+                - ERROR RECEIVED: {error_feedback}
+                INSTRUCTIONS: Analyze the error and generate a different, corrected SQL query. 
+                Check your JOIN logic and table names carefully.
+                """
 
             sql_response = groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": sql_prompt}]
             )
+            usage = sql_response.usage
+            token_metadata = {
+                "prompt_tokens": usage.prompt_tokens,
+                "completion_tokens": usage.completion_tokens,
+                "total_tokens": usage.total_tokens
+            }
+
+        # 3. Log it for your System Audit
+            system_log(f"🎫 Tokens Used sql_response - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
             system_log(f"🧠 SQL Generation Attempt {attempt}: {sql_response.choices[0].message.content.strip()}")
             generated_sql = sql_response.choices[0].message.content.strip()
-            generated_sql = generated_sql.replace("```sql", "").replace("```", "").replace("\n", " ")
+            generated_sql = (generated_sql
+                .replace("```sql", "")
+                .replace("```", "")
+                .replace(";--", "")  # Remove comment attempts
+                .strip()
+                .split(';')[0])
 
             try:
                 cur.execute(generated_sql)
                 db_results = cur.fetchall()
+                system_log(f"✅ generated SQL executed successfully: {generated_sql}")
+                system_log(f"✅ db_results: {db_results}")
 
                 final_answer = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": "You are a helpful POS assistant. Use only the DB results provided."},
-                        {"role": "user", "content": f"User asked: {question}\nDB results: {db_results}. Prices in LKR."}
+                        {
+                            "role": "system",
+                            "content": """You are a POS system assistant. Answer using only the provided data.
+
+                            RULES:
+                            1. Use DATABASE DATA for exact values
+                            2. Use CONTEXT for explanations
+                            3. If data is missing, say: "I don't have that information"
+                            4. Never mention 'database' or 'context'
+                            5. Never invent information
+                            6. All prices in LKR
+                            7. For errors, say: "I'm unable to access that right now"
+
+                            Answer as if you are the company speaking to staff."""},
+                        {"role": "user", "content": f"User asked: {question}\nDB results: {db_results}. ."}
                     ]
                 )
+                usage = final_answer.usage
+                token_metadata = {
+                    "prompt_tokens": usage.prompt_tokens,
+                    "completion_tokens": usage.completion_tokens,
+                    "total_tokens": usage.total_tokens
+                }
+
+            # 3. Log it for your System Audit
+                system_log(f"🎫 Tokens Used sql final_answer - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
 
                 return final_answer.choices[0].message.content
 
@@ -292,7 +370,94 @@ def ask_sql_ai(question):
                 error_feedback = str(e)
                 system_log(f"⚠️ Attempt {attempt} failed: {error_feedback}")
 
-        return "I couldn't process that query. Please rephrase your question or contact support."
+        return "I couldn't process that . Try Again or Please rephrase your question or contact support."
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+
+def get_raw_ai(question):
+    system_log("🧠 Generating Raw query...")
+    
+    attempt = 0
+    max_attempts = 3
+    error_feedback = ""
+
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        while attempt < max_attempts:
+            attempt += 1
+
+            sql_prompt = f"""
+            System: You are a Read-Only PostgreSQL generator. 
+            Task: Generate a SELECT query to answer: {question}
+            SCHEMA: {SCHEMA_INFO}
+            {f"PREVIOUS ERROR: {error_feedback}. Please fix this SQL." if error_feedback else ""}
+            
+            STRICT RULES:
+            1. Respond with ONLY the raw SQL string.
+            2. Use ILIKE with %.
+            3. Double quote the "order" table.
+            4.Date format in 'YYYY-MM-DD' and use single quotes for dates and strings.
+                EXAMPLES:
+                User: "Show me all orders from January 3rd 2026"
+                SQL: SELECT * FROM "order" WHERE order_date::date = '2026-01-03';
+
+            5. if ask delay reson retrieve staff name, curier name and order status from db and give answer
+                User: "Why is order 118 delayed?"
+             
+                            
+            """
+            if error_feedback:
+                sql_prompt += f"""
+                 PREVIOUS ATTEMPT FAILED:
+                - FAILED SQL: {generated_sql}
+                - ERROR RECEIVED: {error_feedback}
+                INSTRUCTIONS: Analyze the error and generate a different, corrected SQL query. 
+                Check your JOIN logic and table names carefully.
+                """
+
+            sql_response = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": sql_prompt}]
+            )
+            usage = sql_response.usage
+            token_metadata = {
+                "prompt_tokens": usage.prompt_tokens,
+                "completion_tokens": usage.completion_tokens,
+                "total_tokens": usage.total_tokens
+            }
+
+        # 3. Log it for your System Audit
+            system_log(f"🎫 Tokens Used sql_response - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
+            system_log(f"🧠 SQL Generation Attempt {attempt}: {sql_response.choices[0].message.content.strip()}")
+            generated_sql = sql_response.choices[0].message.content.strip()
+            generated_sql = (generated_sql
+                .replace("```sql", "")
+                .replace("```", "")
+                .replace(";--", "")  # Remove comment attempts
+                .strip()
+                .split(';')[0])
+
+            try:
+                cur.execute(generated_sql)
+                db_results = cur.fetchall()
+                system_log(f"✅ generated SQL executed successfully: {generated_sql}")
+                system_log(f"✅ db_results: {db_results}")
+                conn.commit()
+
+                return db_results
+
+            except Exception as e:
+                conn.rollback()
+                error_feedback = str(e)
+                system_log(f"⚠️ Attempt {attempt} failed: {error_feedback}")
+
+        return "I couldn't process that database request."
 
     finally:
         cur.close()
@@ -303,55 +468,93 @@ def ask_both_ai(question):
     system_log("🔄 Processing BOTH SQL and RAG...")
     # Step A: Get the factual data from SQL
     # We use a simpler version of the SQL function that just returns raw data
-    db_results = ask_sql_ai(question) 
+    db_results = get_raw_ai(question) 
     
-    # Step B: Perform a Vector Search using the factual results as context
-    # If the DB says "Courier 2", we search the KB for "Courier 2 delays"
-    search_context = f"Database Data: {db_results}. Question: {question}"
-    kb_context = ask_rag_ai(search_context)
+    refine_prompt = f"""
+    You are a Search Optimizer for a POS Intelligence System. 
+    Convert Database Results into a 1-sentence NATURAL LANGUAGE query for a knowledge base.
+
+    STRICT RULES:
+    1. Output ONLY the 1-sentence query. No preamble, no quotes.
+    2. ENTITY PRIORITY: Courier Name > Product Name > Customer Name.
+    3. If 'status' is Delayed/Failed, focus the query on the COURIER or PRODUCT reason.
+    4. IGNORE staff/cashier names (e.g., Cher, Arosha) as they do not cause logistical delays.
+
+    EXAMPLES:
+    - Data: [RealDictRow({{'staff_name': 'Cher', 'courier_name': 'Koombiyo', 'order_status': 'Delayed'}})]
+      User: "Why is order 118 delayed?"
+      Output: What is the reason for Koombiyo courier service delays?
+
+    - Data: [RealDictRow({{'product_name': 'iPhone 15', 'order_status': 'Out of Stock'}})]
+      User: "Why can't I order this?"
+      Output: Reasons for iPhone 15 stock shortages or supply chain issues.
+
+    - Data: [RealDictRow({{'courier_name': 'Domex', 'order_status': 'Delayed'}})]
+      User: "What is the status and reason for delay of Order 116?"
+      Output: What is the reason for Domex courier service delays?
+
+    USER QUESTION: {question}
+    DATABASE RESULTS: {db_results}
+
+    REFINED QUERY:"""
+
+    # Use a fast model for this intermediate step
+    refine_response = groq_client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[{"role": "user", "content": refine_prompt}],
+        temperature=0
+    )
+    optimized_query = refine_response.choices[0].message.content.strip()
+    system_log(f"🧠 Optimized RAG Query: {optimized_query}")
+
+    kb_context = ask_rag_ai(optimized_query)
+    #kb_context = ask_rag_ai(question)
+    system_log(f"🔍 RAG Context Retrieved: {kb_context[:200]}...")  # Log the first 200 chars of context
     
     # Step C: Final Synthesis
     # Send everything to Groq to explain the "Delayed because of X" reason
     final_response = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[
-            {
-                "role": "system", 
-                "content": """You are a POS assistant that combines database facts with knowledge base context.
+    model="llama-3.3-70b-versatile",
+    messages=[
+        {
+            "role": "system",
+            "content": """You are a POS system assistant. Answer questions directly using only the provided data.
 
-                CRITICAL RULES (VIOLATING THESE IS A SERIOUS ERROR):
-                1. ONLY state information that is explicitly present in the Database Results or Knowledge Base Context below
-                2. DO NOT invent, assume, or fabricate ANY information
-                3. If the context doesn't contain specific information, say "I don't have that information"
-                4. NEVER make up order IDs, dates, prices, or reasons that aren't in the provided data
-                5. Quote facts EXACTLY as they appear in the context
-                6. If Database Results show "No data" or similar, acknowledge that clearly
-                7. If sql syntax error occurred, state that "I was unable to retrieve data due to a query error."
+            RULES:
+            1. Use DATABASE DATA for exact values (names, prices, dates, status)
+            2. Use CONTEXT for explanations and procedures
+            3. If data is missing, say: "I don't have that information"
+            4. Never mention 'database', 'context', or 'results'
+            5. Never invent information
+            6. Keep answers clear and concise
+            7. For database errors, say: "I'm unable to access that right now"
+            8. all prices should be in LKR 
 
-                YOUR TASK:
-                - Start with the DATABASE FACTS (numbers, status, dates)
-                - Then add CONTEXT/EXPLANATION from Knowledge Base if available
-                - Keep your answer concise and factual
-                - dont say youte getting answer from knowledge base or databse just say only answer ."
+            Answer as if you are the company speaking directly to staff."""
+                    },
+                    {
+                        "role": "user",
+                        "content": f"""Question: {question}
 
-                Remember: It's better to say "I don't know" than to guess or hallucinate."""
-                            },
-                            {
-                                "role": "user", 
-                                "content": f"""USER QUESTION: {question}
+            Data: {db_results}
 
-                DATABASE RESULTS:
-                {db_results}
+            Context: {kb_context}
 
-                KNOWLEDGE BASE CONTEXT:
-                {kb_context}
-
-                Provide a clear answer combining both sources. If either source is missing information, state that clearly."""
-            }
+            Answer:"""
+                }
         ],
         temperature=0.1,  # Very low temperature to reduce hallucination
         max_tokens=500
     )
+    usage = final_response.usage
+    token_metadata = {
+        "prompt_tokens": usage.prompt_tokens,
+        "completion_tokens": usage.completion_tokens,
+        "total_tokens": usage.total_tokens
+    }
+
+# 3. Log it for your System Audit
+    system_log(f"🎫 Tokens Used both answer - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
     
     return final_response.choices[0].message.content
 
