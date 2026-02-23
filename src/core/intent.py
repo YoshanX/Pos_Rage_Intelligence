@@ -38,7 +38,7 @@ def identify_intent(question):
         "total_tokens": usage.total_tokens
     }
 
-# 3. Log it for your System Audit
+
     system_log(f" Tokens Used intent - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
     
     intent = response.choices[0].message.content.strip().upper()

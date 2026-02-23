@@ -25,8 +25,7 @@ def log_transaction(query, intent, latency, response):
     print(log_entry)
 
 
-    import os
-import datetime
+
 
 def system_log(message):
     """
@@ -34,16 +33,8 @@ def system_log(message):
     and append it to the audit log file.
     """
     
-    
-    # 2. Format the message with a timestamp
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     formatted_msg = f"[{timestamp}] {message}"
-    
-    # 3. Print to Terminal
     print(formatted_msg)
-    
-    # 4. Append to Log File
-    
-
     with open("../logs/system_audit.log", "a", encoding="utf-8") as f:
         f.write(formatted_msg + "\n")   

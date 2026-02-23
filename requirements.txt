@@ -1,28 +1,26 @@
-# Core dependencies
-python-dotenv==1.0.0
+
+# ── POS RAG Intelligence System ──────────────────────────────
+
+# Install: pip install -r requirements.txt
+
+# Environment
+python-dotenv==1.0.1
 psycopg2-binary==2.9.9
 
-# pgvector support
-pgvector==0.2.4
+# Database
+psycopg2-binary==2.9.10
+pgvector==0.3.6
 
-# LangChain ecosystem
-langchain==0.1.0
-langchain-community==0.0.13
-langchain-openai==0.0.2
+# AI / LLM
+groq==0.15.0
+sentence-transformers==3.4.1
 
-# Groq AI
-groq==0.4.1
+# Memory
+redis==5.2.1
 
-# Embeddings & utilities
-sentence-transformers==2.2.2
-tiktoken==0.5.2
-numpy==1.24.3
+# UI
+streamlit==1.42.0
 
-# API & Web
-fastapi==0.109.0
-uvicorn==0.27.0
-pydantic==2.5.3
-
-# Data processing
+# Utilities (used internally by sentence-transformers & pgvector)
+numpy==1.26.4
 pandas==2.1.4
-sqlalchemy==2.0.25

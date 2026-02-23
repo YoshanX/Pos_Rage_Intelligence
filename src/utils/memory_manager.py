@@ -4,9 +4,7 @@ from config import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, CHAT_TTL, MAX_MESSAGE
 from utils.logger import system_log
 
 # ============================================================
-# IMPROVEMENT 1: Connection Pool instead of bare connection
-# - Handles concurrent cashier sessions without blocking
-# - Auto-reconnects if Redis drops briefly
+# IMPROVEMENT 1: Connection Pool instead 
 # ============================================================
 try:
     pool = redis.ConnectionPool(
@@ -29,18 +27,6 @@ except Exception as e:
     r = None
     REDIS_AVAILABLE = False
 
-
-# ============================================================
-# Config
-# ============================================================
-
-
-
-# ============================================================
-# IMPROVEMENT 2: Graceful degradation fallback
-# If Redis is unavailable, falls back to in-memory dict
-# so the app keeps running instead of crashing
-# ============================================================
 _fallback_store: dict = {}
 
 
@@ -65,9 +51,7 @@ def _truncate(content: str) -> str:
     return content
 
 
-# ============================================================
-# Public API
-# ============================================================
+
 
 def save_message(session_id: str, role: str, content: str):
     """
@@ -81,9 +65,9 @@ def save_message(session_id: str, role: str, content: str):
 
     if _is_redis_up():
         try:
-            pipe = r.pipeline()  # IMPROVEMENT: Use pipeline for atomic multi-step ops
+            pipe = r.pipeline()   #pipeline for atomic multi-step ops
             pipe.rpush(key, message)
-            pipe.ltrim(key, -MAX_HISTORY_MESSAGES, -1)  # IMPROVEMENT: Cap history length
+            pipe.ltrim(key, -MAX_HISTORY_MESSAGES, -1)  # Cap history length
             pipe.expire(key, CHAT_TTL)
             pipe.execute()
         except Exception as e:

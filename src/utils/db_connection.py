@@ -16,7 +16,7 @@ def setup_database():
             embedding vector(384)
         );
     """)
-    cur.execute("ALTER TABLE product ADD COLUMN IF NOT EXISTS embedding vector(384);")
+    
     conn.commit()
     cur.close()
     conn.close()
