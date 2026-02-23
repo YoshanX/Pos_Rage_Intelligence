@@ -1,6 +1,6 @@
 import psycopg2
 from config import DB_CONFIG
-from logger import system_log
+from utils.logger import system_log
 
 def get_connection():
     return psycopg2.connect(**DB_CONFIG)

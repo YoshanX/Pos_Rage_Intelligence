@@ -59,3 +59,24 @@ Testing: Does the system block hallucinations and maintain focus?
         A: No, the provided specifications only mention 360-degree sound and its function as a smart home hub with Siri.
 
 Would you like me to help you set up an automated evaluation script that runs these 10 questions and logs the token usage for each one?
+
+
+
+
+
+
+db insertion sample
+
+-- ORDER 124: January 12
+INSERT INTO "order" (order_id, customer_id, staff_id, courier_id, status_id, order_date, total_price)
+VALUES (124, 4, 3, 1, 4, '2026-01-12', 0);
+
+INSERT INTO order_item (order_id, product_id, quantity, price_at_sale)
+SELECT 124, p.product_id, q.qty, p.current_price
+FROM product p
+JOIN (
+    SELECT 14 AS product_id, 1 AS qty UNION ALL
+    SELECT 2, 2
+) q ON p.product_id = q.product_id;
+
+UPDATE "order" SET total_price = (SELECT SUM(quantity * price_at_sale) FROM order_item WHERE order_id = 124) WHERE order_id = 124;

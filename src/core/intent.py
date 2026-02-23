@@ -1,5 +1,6 @@
 from config import groq_client, FAST_MODEL
-from logger import system_log
+from utils import system_log
+from prompts import routing_prompt
 
 def identify_intent(question):
 
@@ -19,40 +20,15 @@ def identify_intent(question):
         return "CLOSURE"
     # 2. Use LLM-based classification for more complex queries
     """
-    Refined intent classifier using few-shot examples for Avenir IT POS.
+    Refined intent classifier using few-shot examples for 
     Routes to SQL (Data), RAG (Specs/Policy), or BOTH (Data + Reason).
     """
+    filled_prompt = routing_prompt.format(question=question)
     
-    routing_prompt = f"""Classify query intent for POS system.
-
-            USER QUESTION: "{question}"
-
-            CATEGORIES:
-            **SQL** - Database facts (price, stock, status, count, date)
-            **RAG** - Knowledge info (specs, features, warranty, policy, compare)
-            **BOTH** - Data + explanation (why, reason, cause)
-
-            KEYWORDS:
-            SQL: price, cost, how many, stock, status, order, sold, total, list, show
-            RAG: specs, features, warranty, policy, compare, recommend, describe
-            BOTH: why, reason, explain, cause, delayed and why, if so why
-
-            EXAMPLES:
-            "Price of Xiaomi 14?" → SQL
-            "Xiaomi 14 specs?" → RAG
-            "Why order 118 delayed?" → BOTH
-            "Order 55 status and why delayed?" → BOTH
-            "How many Orders are delayed?" → SQL
-            "Return policy?" → RAG
-            "iPhones sold Jan 5?" → SQL
-
-            RULE: Contains "why/reason/explain" → BOTH
-
-Answer (one word):"""
 
     response = groq_client.chat.completions.create(
         model=FAST_MODEL,
-        messages=[{"role": "user", "content": routing_prompt}],
+        messages=[{"role": "user", "content": filled_prompt}],
         temperature=0.1  # Lower temperature for more consistent classification
     )
     usage = response.usage

@@ -2,9 +2,9 @@ import os
 import re
 import psycopg2
 from sentence_transformers import SentenceTransformer
-from db_connection import get_connection
+from utils import get_connection
 from config import DB_CONFIG, embed_model
-from logger import system_log
+from utils import system_log
 
 def parse_txt_to_chunks(file_path):
     """

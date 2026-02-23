@@ -1,13 +1,13 @@
 import streamlit as st
 import os
 import time
-from db_connection import setup_database
-from intent import identify_intent
-from retrieve import ask_sql_ai, ask_rag_ai, ask_both_ai, validate_query,reformulate_question, handle_small_talk
+from utils import setup_database
+from core import identify_intent
+from core import ask_sql_ai, ask_rag_ai, ask_both_ai, validate_query,reformulate_question, handle_small_talk
 from ingest import ingest_to_knowledge_base
-from logger import log_transaction
-from logger import system_log
-from memory_manager import save_message,clear_history,get_chat_history
+from utils import log_transaction
+from utils import system_log
+from utils import save_message,clear_history,get_chat_history
 
 # Page Configuration
 st.set_page_config(page_title="POS RAG Intelligence", page_icon="🤖", layout="wide")
@@ -21,7 +21,12 @@ def init_system():
 init_system()
 system_log(" Application Started.")
 
-session_id = "user_123"
+if "session_id" not in st.session_state:
+    import uuid
+    st.session_state.session_id = f"cashier_{uuid.uuid4().hex[:8]}"
+
+session_id = st.session_state.session_id
+
 # --- Sidebar Admin Controls ---
 with st.sidebar:
     st.header("⚙️ Admin Controls")
@@ -60,6 +65,11 @@ with st.sidebar:
     st.status("Database Connected", state="complete")
     st.info("Knowledge Base: Ready")
 
+
+# =============================================
+# Main Chat UI
+# =============================================    
+
 # --- Chat Interface Logic ---
 st.title("🛡️ POS AI Thought Partner")
 st.markdown("Ask about inventory, technical specs, or order statuses.")
@@ -73,7 +83,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # User Input Box
-if query := st.chat_input("Ex: Why is order 118 delayed?"):
+if query := st.chat_input("Ask about stock, prices, orders, specs or policies..."):
     start_time = time.time()
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user"):
