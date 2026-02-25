@@ -9,8 +9,6 @@ import re
 from prompts import standalone_Prompt,refine_prompt,rag_system_prompt,sql_insight_system_prompt,both_final_answer_system_prompt
 
 
-
-
 def validate_query(question, max_tokens=MAX_TOKEN):
    
     # 1. Clean the input
@@ -26,11 +24,7 @@ def validate_query(question, max_tokens=MAX_TOKEN):
         system_log(f" Guardrail Triggered: Query is {token_count} tokens (Max: {max_tokens})")
         return False, f"Your question is too long ({token_count} tokens). Please keep it under {max_tokens} tokens."
     
-    # 3. Security Check (SQL Injection Guardrail)
-    # Checks for forbidden administrative/destructive keywords
-
     forbidden_keywords = ["DROP", "DELETE", "UPDATE", "INSERT", "TRUNCATE", "ALTER", "CREATE"]
-    # Check if any forbidden word is present as a standalone word (case-insensitive)
     upper_question = clean_question.upper().split()
     for word in forbidden_keywords:
         if word in upper_question:
@@ -41,31 +35,23 @@ def validate_query(question, max_tokens=MAX_TOKEN):
 
 
 def reformulate_question(current_question, session_id):
-    """
-    Hybrid Reformulator: Uses Keyword Detection + Semantic Context Injection.
-    
-    """
+    """Hybrid Reformulator: Uses Keyword Detection + Semantic Context Injection."""
     history = get_chat_history(session_id, window_size=6)
     if not history:
         return current_question
     
     # 1. EXPANDED KEYWORD HEURISTICS (Fast Check)
     context_keywords = [
-       "it", "that", "those", "them", "this", "these", "its","why", "reason", "explain", "cause", "delayed and why", "if so why"
+       "it", "that", "those", "them", "this", "these", "its","why", "reason", "explain", "cause", "delayed and why", "if so why", "what about", "and the", "with the", "how about", "status of", "details of",'who', 'when', 'where', 'which', 'whom', 'whose', 'how'
     ]
     
-    # Use substring search instead of split for better matching
     needs_context = any(word in current_question.lower() for word in context_keywords)
     
     if not needs_context:
         system_log(f" Fast-Pass: Standalone Query detected.")
         return current_question
     
-    # 2. ENTITY EXTRACTION FROM HISTORY (Fixed order - chronological)
     recent_context = "\n".join([f"{m['role']}: {m['content']}" for m in history])
-    # 3. INTELLIGENT REWRITE PROMPT (Enhanced)
-    
-    
     try:
         response = groq_client.chat.completions.create(
             model=LARGE_MODEL,
@@ -119,7 +105,6 @@ def reformulate_question(current_question, session_id):
             system_log(f" Reformulated: '{current_question}' → '{refined_query}'")
         else:
             system_log(f" No change needed (already standalone)")
-        
         return refined_query
         
     except Exception as e:
@@ -131,22 +116,15 @@ def reformulate_question(current_question, session_id):
 # --- 4. RAG SEARCH (Vector Search) ---
 def ask_rag_ai(question):
     system_log(" Generating embedding for RAG search...")
-    #question='What is the reason for Koombiyo courier service delays?'
-
    
-    # FIX 1: Extract clean search terms for keyword search
-    
     filler_words = ['give', 'me', 'show', 'tell', 'what', 'is', 'the', 'of', 'specs', 'spec']
     search_terms = ' '.join([w for w in question.lower().split() if w not in filler_words])
-    
-    # FIX 2: Enhance query for better vector matching
     
     question_vector = embed_model.encode(question).tolist()
     
     conn = get_connection()
     cur = conn.cursor()
     
-    # FIX 3: Simplified query - rely more on vector search
     search_query = """
     WITH vector_matches AS (
         SELECT 
@@ -180,7 +158,6 @@ def ask_rag_ai(question):
     """
     
     try:
-        # Pass: enhanced vector, enhanced vector, clean terms, clean terms
         cur.execute(search_query, (question_vector, question_vector, search_terms, search_terms))
         results = cur.fetchall()
         system_log(f" Database returned {len(results)} results")
@@ -197,7 +174,7 @@ def ask_rag_ai(question):
             system_log(f"   Enhanced query: '{question_vector[:50]}'")
             return "I couldn't find relevant information..."
 
-        # Log the split scores for transparency
+        
         for r in results:
             system_log(f" Match: {r[0][:30]}... | Vector: {r[1]:.2f} | Keyword: {r[2]:.2f}")
 
@@ -221,7 +198,6 @@ def ask_rag_ai(question):
             "total_tokens": usage.total_tokens
         }
 
-        # 3. Log it for your System Audit
         system_log(f" Tokens Used ask_rag_ai - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
         system_log(f"Model dimension: {len(question_vector)}")
         return response.choices[0].message.content
@@ -260,12 +236,8 @@ def ask_sql_ai(question):
             4.Date format in 'YYYY-MM-DD' and use single quotes for dates and strings.
                 EXAMPLES:
                 User: "Show me all orders from January 3rd 2026"
-                SQL: SELECT * FROM "order" WHERE order_date::date = '2026-01-03';
-
-
-             
-                            
-            """
+                SQL: SELECT * FROM "order" WHERE order_date::date = '2026-01-03'; """
+            
             if error_feedback:
                 sql_prompt += f"""
                  PREVIOUS ATTEMPT FAILED:
@@ -286,7 +258,6 @@ def ask_sql_ai(question):
                 "total_tokens": usage.total_tokens
             }
 
-        # 3. Log it for your System Audit
             system_log(f" Tokens Used sql_response - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
             system_log(f" SQL Generation Attempt {attempt}: {sql_response.choices[0].message.content.strip()}")
             generated_sql = sql_response.choices[0].message.content.strip()
@@ -319,7 +290,7 @@ def ask_sql_ai(question):
                     "total_tokens": usage.total_tokens
                 }
 
-            # 3. Log it for your System Audit
+           
                 system_log(f" Tokens Used sql final_answer - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
 
                 return final_answer.choices[0].message.content
@@ -333,8 +304,6 @@ def ask_sql_ai(question):
     finally:
         cur.close()
         conn.close()
-
-
 
 def get_raw_ai(question):
     system_log(" Generating Raw query...")
@@ -367,8 +336,6 @@ def get_raw_ai(question):
 
             5. if ask delay reson retrieve staff name, curier name and order status from db and give answer
                 User: "Why is order 118 delayed?"
-             
-                            
             """
             if error_feedback:
                 sql_prompt += f"""
@@ -390,14 +357,13 @@ def get_raw_ai(question):
                 "total_tokens": usage.total_tokens
             }
 
-        # 3. Log it for your System Audit
             system_log(f" Tokens Used sql_response - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
             system_log(f" SQL Generation Attempt {attempt}: {sql_response.choices[0].message.content.strip()}")
             generated_sql = sql_response.choices[0].message.content.strip()
             generated_sql = (generated_sql
                 .replace("```sql", "")
                 .replace("```", "")
-                .replace(";--", "")  # Remove comment attempts
+                .replace(";--", "")  
                 .strip()
                 .split(';')[0])
 
@@ -407,7 +373,6 @@ def get_raw_ai(question):
                 system_log(f" generated SQL executed successfully: {generated_sql}")
                 system_log(f" db_results: {db_results}")
                 conn.commit()
-
                 return db_results
 
             except Exception as e:
@@ -424,13 +389,7 @@ def get_raw_ai(question):
 
 def ask_both_ai(question):
     system_log(" Processing BOTH SQL and RAG...")
-    # Step A: Get the factual data from SQL
-    # We use a simpler version of the SQL function that just returns raw data
     db_results = get_raw_ai(question) 
-    
-    
-
-    # Use a fast model for this intermediate step
     refine_response = groq_client.chat.completions.create(
         model=FAST_MODEL,
         messages=[{"role": "user", "content": refine_prompt}],
@@ -440,11 +399,9 @@ def ask_both_ai(question):
     system_log(f" Optimized RAG Query: {optimized_query}")
 
     kb_context = ask_rag_ai(optimized_query)
-    #kb_context = ask_rag_ai(question)
-    system_log(f" RAG Context Retrieved: {kb_context[:200]}...")  # Log the first 200 chars of context
+   
+    system_log(f" RAG Context Retrieved: {kb_context[:200]}...")  
     
-    # Step C: Final Synthesis
-    # Send everything to Groq to explain the "Delayed because of X" reason
     final_response = groq_client.chat.completions.create(
     model=LARGE_MODEL,
     messages=[
@@ -463,7 +420,7 @@ def ask_both_ai(question):
             Answer:"""
                 }
         ],
-        temperature=0.1,  # Very low temperature to reduce hallucination
+        temperature=0.1,  
         max_tokens=500
     )
     usage = final_response.usage
@@ -473,7 +430,6 @@ def ask_both_ai(question):
         "total_tokens": usage.total_tokens
     }
 
-# 3. Log it for your System Audit
     system_log(f" Tokens Used both answer - Prompt: {usage.prompt_tokens} | Completion: {usage.completion_tokens} | Total: {usage.total_tokens}")
     
     return final_response.choices[0].message.content
@@ -481,9 +437,7 @@ def ask_both_ai(question):
 
 
 def handle_small_talk(intent, user_name="YoshanX"):
-    """
-    Returns pre-defined responses for greetings and help.
-    """
+    """Returns pre-defined responses for greetings and help."""
     responses = {
         "GREETING": f"👋 Hello {user_name}! I'm your POS Intelligent Assistant. How can I help you with inventory or orders today?",
         

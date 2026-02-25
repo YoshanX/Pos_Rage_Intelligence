@@ -67,7 +67,6 @@ def ingest_to_knowledge_base(file_list):
         for rec in records:
             # Generate vector for the CONTENT
             try:
-                
                 text_to_embed = f"{rec['title']} {rec['content']}"
                 embedding = embed_model.encode(text_to_embed).tolist()
                 

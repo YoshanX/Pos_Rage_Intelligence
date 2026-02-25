@@ -4,12 +4,9 @@ import psycopg2
 from sentence_transformers import SentenceTransformer
 from groq import Groq
 from dotenv import load_dotenv
-#from utils.logger import system_log
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Access the API key using the key name defined in the .env file
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if GROQ_API_KEY is not None:
@@ -37,7 +34,6 @@ DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "port": "5432"
 }
-
 
 # Model for local embeddings (384 dimensions)
 embed_model = SentenceTransformer('all-MiniLM-L6-v2') 

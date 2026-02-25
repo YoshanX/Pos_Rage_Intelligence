@@ -34,9 +34,9 @@ Testing: Can the system correctly map a product name to an ID and retrieve its s
 
         A: There are 25 units of the Samsung Galaxy Buds 2 Pro in stock.
 
-    Q: "Show me the price change reason for the iPhone 15 128GB."
+    Q: "Show me the price change reason for the iPhone 15 Pro Max."
 
-        A: (Requires SQL price_change_log lookup) Example: "Market price adjustment".
+        A: The reason for the price change of the iPhone 15 Pro Max is due to a Promotion".
 
 🚛 Hybrid Logistics (BOTH Route)
 

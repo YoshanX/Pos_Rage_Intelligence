@@ -1,7 +1,4 @@
 
-# ========================================
-# routing_prompt
-# ========================================
 
 routing_prompt = """Classify query intent for POS system.
 
@@ -9,12 +6,12 @@ routing_prompt = """Classify query intent for POS system.
 
             CATEGORIES:
             **SQL** - Database facts (price, stock, status, count, date)
-            **RAG** - Knowledge info (specs, features, warranty, policy, compare)
+            **RAG** - Knowledge info (specs, features, warranty, policy, compare,camera,capacity)
             **BOTH** - Data + explanation (why, reason, cause)
 
             KEYWORDS:
             SQL: price, cost, how many, stock, status, order, sold, total, list, show
-            RAG: specs, features, warranty, policy, compare, recommend, describe
+            RAG: specs, features, warranty, policy, compare, recommend, describe , camera , capacity
             BOTH: why, reason, explain, cause, delayed and why, if so why
 
             EXAMPLES:
@@ -25,15 +22,12 @@ routing_prompt = """Classify query intent for POS system.
             "How many Orders are delayed?" → SQL
             "Return policy?" → RAG
             "iPhones sold Jan 5?" → SQL
-
+            "Compare iPhone 15 and Pixel 7a battery capacity" → RAG
             RULE: Contains "why/reason/explain" → BOTH
 
 Answer (one word):"""
 
 
-# ========================================
-# standalone Prompts
-# ========================================
 
 standalone_Prompt =  """You are a Query Refinement Engine for a Smartphone POS system. 
         Your goal is to rewrite the user's question as a standalone query ONLY if it is a follow-up
@@ -66,16 +60,14 @@ standalone_Prompt =  """You are a Query Refinement Engine for a Smartphone POS s
         Output: Compare iPhone 15 and Samsung S24
         Question: "what is the pric of i phone 15"
         Output: what is the price of iPhone 15
+        History: "3 orders are delayed by Koombiyo courier service0"
+        Question: "What are they?"
+        Output: What are the 3 orders delayed by Koombiyo courier service?
         
         
         """
 
 
-
-
-# ========================================
-# refine_prompt
-# ========================================
 
 refine_prompt = """
     You are a Search Optimizer for a POS Intelligence System. 
@@ -86,6 +78,8 @@ refine_prompt = """
     2. ENTITY PRIORITY: Courier Name > Product Name > Customer Name.
     3. If 'status' is Delayed/Failed, focus the query on the COURIER or PRODUCT reason.
     4. IGNORE staff/cashier names (e.g., Cher, Arosha) as they do not cause logistical delays.
+    5. Output ONLY a plain English sentence.
+    6. NEVER output code, logic (if/else), or curly braces {}
 
     EXAMPLES:
     - Data: [RealDictRow({{'staff_name': 'Cher', 'courier_name': 'Koombiyo', 'order_status': 'Delayed'}})]

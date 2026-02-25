@@ -66,11 +66,7 @@ with st.sidebar:
     st.info("Knowledge Base: Ready")
 
 
-# =============================================
 # Main Chat UI
-# =============================================    
-
-# --- Chat Interface Logic ---
 st.title("🛡️ POS AI Thought Partner")
 st.markdown("Ask about inventory, technical specs, or order statuses.")
 
@@ -98,17 +94,10 @@ if query := st.chat_input("Ask about stock, prices, orders, specs or policies...
         # 3. Execution Path
         if intent in ["GREETING", "ABOUT", "CLOSURE"]:
             answer = handle_small_talk(intent)
-            # Skip the expensive DB/RAG calls
             latency = 0.05
-
-
-            # 2. LOG it (Using your new logger)
             system_log(f" Original: {query} -> Standalone: {standalone_query}")
             with st.spinner("Analyzing Pos_dbc & Knowledge Base..."):
                 is_safe, error_message = validate_query(standalone_query)
-                
-                    
-
                 save_message(session_id, "user", query)
                 save_message(session_id, "assistant", answer)
                 system_log(get_chat_history(session_id, window_size=6))
@@ -119,8 +108,6 @@ if query := st.chat_input("Ask about stock, prices, orders, specs or policies...
                 system_log(f" Response delivered in {latency:.2f} seconds via {intent} route.")
                 
         else:    
-
-            # 2. LOG it (Using your new logger)
             system_log(f" Original: {query} -> Standalone: {standalone_query}")
             with st.spinner("Analyzing Pos_dbc & Knowledge Base..."):
                 is_safe, error_message = validate_query(standalone_query)
@@ -128,9 +115,7 @@ if query := st.chat_input("Ask about stock, prices, orders, specs or policies...
                     answer = f"⚠️ **Guardrail Triggered:** {error_message}"
                     route = "BLOCKED"
                 else:
-                    
                     route = intent
-                    
                     if "BOTH" in route:
                         st.caption("🔀 Path: BOTH (SQL + RAG)")
                         answer = ask_both_ai(standalone_query)
